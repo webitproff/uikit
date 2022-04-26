@@ -107,15 +107,21 @@ button.uk-icon:not(:disabled) { cursor: pointer; }
 
 /*
  * Display images in icon dimensions
+ * 1. Required for `span` with background image
+ * 2. Required for `image`
  */
 
 .uk-icon-image {
     width: $icon-image-size;
     height: $icon-image-size;
+    /* 1 */
     background-position: 50% 50%;
     background-repeat: no-repeat;
     background-size: contain;
     vertical-align: middle;
+    /* 2 */
+    object-fit: scale-down;
+    max-width: none;
 }
 
 
@@ -201,9 +207,9 @@ $inverse-icon-link-hover-color:                 $inverse-global-color !default;
 $inverse-icon-link-active-color:                $inverse-global-color !default;
 $inverse-icon-button-background:                $inverse-global-muted-background !default;
 $inverse-icon-button-color:                     $inverse-global-muted-color !default;
-$inverse-icon-button-hover-background:          fadein($inverse-icon-button-background, 5%) !default;
+$inverse-icon-button-hover-background:          fade-in($inverse-icon-button-background, 0.05) !default;
 $inverse-icon-button-hover-color:               $inverse-global-color !default;
-$inverse-icon-button-active-background:         fadein($inverse-icon-button-background, 10%) !default;
+$inverse-icon-button-active-background:         fade-in($inverse-icon-button-background, 0.1) !default;
 $inverse-icon-button-active-color:              $inverse-global-color !default;
 
 

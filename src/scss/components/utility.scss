@@ -10,6 +10,7 @@
 //                  `uk-inline-*`
 //                  `uk-responsive-*`
 //                  `uk-preserve-width`
+//                  `uk-object-*`
 //                  `uk-border-*`
 //                  `uk-box-shadow-*`
 //                  `uk-box-shadow-bottom`
@@ -251,6 +252,30 @@ $dragover-box-shadow:                            0 0 20px rgba(100,100,100,0.3) 
 [data-uk-responsive] { max-width: 100%; }
 
 
+/* Object
+ ========================================================================== */
+
+.uk-object-cover { object-fit: cover; }
+.uk-object-contain { object-fit: contain; }
+.uk-object-fill { object-fit: fill; }
+.uk-object-none { object-fit: none; }
+.uk-object-scale-down { object-fit: scale-down; }
+
+/* 
+ * Position
+ */
+
+.uk-object-top-left { object-position: 0 0; }
+.uk-object-top-center { object-position: 50% 0; }
+.uk-object-top-right { object-position: 100% 0; }
+.uk-object-center-left { object-position: 0 50%; }
+.uk-object-center-center { object-position: 50% 50%; }
+.uk-object-center-right { object-position: 100% 50%; }
+.uk-object-bottom-left { object-position: 0 100%; }
+.uk-object-bottom-center { object-position: 50% 100%; }
+.uk-object-bottom-right { object-position: 100% 100%; }
+
+
 /* Border
  ========================================================================== */
 
@@ -333,8 +358,6 @@ $dragover-box-shadow:                            0 0 20px rgba(100,100,100,0.3) 
  *    https://bugzilla.mozilla.org/show_bug.cgi?id=214004
  * 2. In Firefox, a floating `::first-letter` doesn't have a line box and there for no `line-height`
  *    https://bugzilla.mozilla.org/show_bug.cgi?id=317933
- * 3. Caused by 1.: Edge creates two nested `::first-letter` containers, one for each selector
- *    This doubles the `font-size` exponential when using the `em` unit.
  */
 
 .uk-dropcap::first-letter,
@@ -353,13 +376,6 @@ $dragover-box-shadow:                            0 0 20px rgba(100,100,100,0.3) 
 
   .uk-dropcap::first-letter,
   .uk-dropcap > p:first-of-type::first-letter { margin-top: 1.1%; }
-
-}
-
-/* 3 */
-@supports (-ms-ime-align: auto) {
-
-  .uk-dropcap > p:first-of-type::first-letter { font-size: 1em; }
 
 }
 

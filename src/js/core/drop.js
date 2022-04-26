@@ -1,4 +1,5 @@
 import Container from '../mixin/container';
+import Lazyload from '../mixin/lazyload';
 import Position from '../mixin/position';
 import Togglable from '../mixin/togglable';
 import {
@@ -13,6 +14,7 @@ import {
     matches,
     MouseTracker,
     offset,
+    offsetViewport,
     on,
     once,
     parent,
@@ -23,6 +25,7 @@ import {
     pointerUp,
     query,
     removeClass,
+    scrollParents,
     toggleClass,
     within,
 } from 'uikit-util';
@@ -30,7 +33,7 @@ import {
 export let active;
 
 export default {
-    mixins: [Container, Position, Togglable],
+    mixins: [Container, Lazyload, Position, Togglable],
 
     args: 'pos',
 
@@ -57,22 +60,12 @@ export default {
         container: false,
     },
 
-    computed: {
-        boundary({ boundary }, $el) {
-            return boundary === true ? window : query(boundary, $el);
-        },
-
-        clsDrop({ clsDrop }) {
-            return clsDrop || `uk-${this.$options.name}`;
-        },
-
-        clsPos() {
-            return this.clsDrop;
-        },
-    },
-
     created() {
         this.tracker = new MouseTracker();
+    },
+
+    beforeConnect() {
+        this.clsDrop = this.$props.clsDrop || `uk-${this.$options.name}`;
     },
 
     connected() {
@@ -84,6 +77,7 @@ export default {
                 mode: this.mode,
             }).$el;
             attr(this.target, 'aria-haspopup', true);
+            this.lazyload(this.target);
         }
     },
 
@@ -140,7 +134,7 @@ export default {
                 if (this.isToggled()) {
                     this.hide(false);
                 } else {
-                    this.show(toggle.$el, false);
+                    this.show(toggle?.$el, false);
                 }
             },
         },
@@ -152,7 +146,7 @@ export default {
 
             handler(e, toggle) {
                 e.preventDefault();
-                this.show(toggle.$el);
+                this.show(toggle?.$el);
             },
         },
 
@@ -222,9 +216,7 @@ export default {
 
                 this.tracker.init();
 
-                once(
-                    this.$el,
-                    'hide',
+                for (const handler of [
                     on(
                         document,
                         pointerDown,
@@ -246,19 +238,16 @@ export default {
                                 true
                             )
                     ),
-                    { self: true }
-                );
 
-                once(
-                    this.$el,
-                    'hide',
                     on(document, 'keydown', (e) => {
                         if (e.keyCode === 27) {
                             this.hide(false);
                         }
                     }),
-                    { self: true }
-                );
+                    on(window, 'resize', () => this.$emit()),
+                ]) {
+                    once(this.$el, 'hide', handler, { self: true });
+                }
             },
         },
 
@@ -296,8 +285,6 @@ export default {
                 this.position();
             }
         },
-
-        events: ['resize'],
     },
 
     methods: {
@@ -371,24 +358,29 @@ export default {
             removeClass(this.$el, `${this.clsDrop}-stack`);
             toggleClass(this.$el, `${this.clsDrop}-boundary`, this.boundaryAlign);
 
-            const boundary = offset(this.boundary);
-            const alignTo = this.boundaryAlign ? boundary : offset(this.target);
+            const boundary = query(this.boundary, this.$el);
+            const [scrollParent] = scrollParents(this.$el);
+            const scrollParentOffset = offsetViewport(scrollParent);
+            const boundaryOffset = boundary ? offset(boundary) : scrollParentOffset;
 
-            if (this.align === 'justify') {
-                const prop = this.getAxis() === 'y' ? 'width' : 'height';
+            css(this.$el, 'maxWidth', '');
+            const maxWidth = scrollParentOffset.width - (boundary ? 0 : 2 * this.viewportPadding);
+
+            if (this.pos[1] === 'justify') {
+                const prop = this.axis === 'y' ? 'width' : 'height';
+                const targetOffset = offset(this.target);
+                const alignTo = this.boundaryAlign ? boundaryOffset : targetOffset;
                 css(this.$el, prop, alignTo[prop]);
-            } else if (
-                this.boundary &&
-                this.$el.offsetWidth >
-                    Math.max(boundary.right - alignTo.left, alignTo.right - boundary.left)
-            ) {
+            } else if (this.$el.offsetWidth > maxWidth) {
                 addClass(this.$el, `${this.clsDrop}-stack`);
             }
 
+            css(this.$el, 'maxWidth', maxWidth);
+
             this.positionAt(
                 this.$el,
-                this.boundaryAlign ? this.boundary : this.target,
-                this.boundary
+                boundary && this.boundaryAlign ? boundary : this.target,
+                boundary
             );
         },
     },

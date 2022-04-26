@@ -1,12 +1,13 @@
 import {
     $,
     flipPosition,
+    getCssVar,
     offset as getOffset,
+    includes,
     isNumeric,
     isRtl,
     positionAt,
-    removeClasses,
-    toggleClass,
+    toPx,
 } from 'uikit-util';
 
 export default {
@@ -14,68 +15,54 @@ export default {
         pos: String,
         offset: null,
         flip: Boolean,
-        clsPos: String,
     },
 
     data: {
         pos: `bottom-${isRtl ? 'right' : 'left'}`,
         flip: true,
         offset: false,
-        clsPos: '',
+        viewportPadding: 10,
     },
 
-    computed: {
-        pos({ pos }) {
-            return pos.split('-').concat('center').slice(0, 2);
-        },
-
-        dir() {
-            return this.pos[0];
-        },
-
-        align() {
-            return this.pos[1];
-        },
+    connected() {
+        this.pos = this.$props.pos.split('-').concat('center').slice(0, 2);
+        this.axis = includes(['top', 'bottom'], this.pos[0]) ? 'y' : 'x';
     },
 
     methods: {
         positionAt(element, target, boundary) {
-            removeClasses(element, `${this.clsPos}-(top|bottom|left|right)(-[a-z]+)?`);
+            const [dir, align] = this.pos;
 
             let { offset } = this;
-            const axis = this.getAxis();
-
             if (!isNumeric(offset)) {
                 const node = $(offset);
                 offset = node
-                    ? getOffset(node)[axis === 'x' ? 'left' : 'top'] -
-                      getOffset(target)[axis === 'x' ? 'right' : 'bottom']
+                    ? getOffset(node)[this.axis === 'x' ? 'left' : 'top'] -
+                      getOffset(target)[this.axis === 'x' ? 'right' : 'bottom']
                     : 0;
             }
+            offset = toPx(offset) + toPx(getCssVar('position-offset', element));
+            offset = [includes(['left', 'top'], dir) ? -offset : +offset, 0];
 
-            const { x, y } = positionAt(
-                element,
-                target,
-                axis === 'x'
-                    ? `${flipPosition(this.dir)} ${this.align}`
-                    : `${this.align} ${flipPosition(this.dir)}`,
-                axis === 'x' ? `${this.dir} ${this.align}` : `${this.align} ${this.dir}`,
-                axis === 'x'
-                    ? `${this.dir === 'left' ? -offset : offset}`
-                    : ` ${this.dir === 'top' ? -offset : offset}`,
-                null,
-                this.flip,
-                boundary
-            ).target;
+            const attach = {
+                element: [flipPosition(dir), align],
+                target: [dir, align],
+            };
 
-            this.dir = axis === 'x' ? x : y;
-            this.align = axis === 'x' ? y : x;
+            if (this.axis === 'y') {
+                for (const prop in attach) {
+                    attach[prop] = attach[prop].reverse();
+                }
+                offset = offset.reverse();
+            }
 
-            toggleClass(element, `${this.clsPos}-${this.dir}-${this.align}`, this.offset === false);
-        },
-
-        getAxis() {
-            return this.dir === 'top' || this.dir === 'bottom' ? 'y' : 'x';
+            positionAt(element, target, {
+                attach,
+                offset,
+                boundary,
+                viewportPadding: this.viewportPadding,
+                flip: this.flip,
+            });
         },
     },
 };

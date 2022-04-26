@@ -11,7 +11,7 @@ export default function (UIkit) {
         }
 
         this._data = {};
-        this._computeds = {};
+        this._computed = {};
 
         this._initProps();
 
@@ -81,8 +81,8 @@ export default function (UIkit) {
     };
 
     function runUpdates(types) {
-        for (const { read, write, events } of this.$options.update) {
-            if (!types.has('update') && (!events || !events.some((type) => types.has(type)))) {
+        for (const { read, write, events = [] } of this.$options.update) {
+            if (!types.has('update') && !events.some((type) => types.has(type))) {
                 continue;
             }
 
@@ -105,8 +105,8 @@ export default function (UIkit) {
         const {
             $options: { computed },
         } = this;
-        const values = { ...this._computeds };
-        this._computeds = {};
+        const values = { ...(initial ? {} : this._computed) };
+        this._computed = {};
 
         for (const key in computed) {
             const { watch, immediate } = computed[key];

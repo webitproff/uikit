@@ -1,8 +1,9 @@
 import Video from './video';
 import { css, Dimensions, parent } from 'uikit-util';
+import Resize from '../mixin/resize';
 
 export default {
-    mixins: [Video],
+    mixins: [Resize, Video],
 
     props: {
         width: Number,
@@ -11,6 +12,16 @@ export default {
 
     data: {
         automute: true,
+    },
+
+    events: {
+        'load loadedmetadata'() {
+            this.$emit('resize');
+        },
+    },
+
+    resizeTargets() {
+        return [this.$el, parent(this.$el)];
     },
 
     update: {

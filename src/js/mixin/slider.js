@@ -1,3 +1,4 @@
+import Resize from './resize';
 import SliderAutoplay from './slider-autoplay';
 import SliderDrag from './slider-drag';
 import SliderNav from './slider-nav';
@@ -15,7 +16,7 @@ import {
 } from 'uikit-util';
 
 export default {
-    mixins: [SliderAutoplay, SliderDrag, SliderNav],
+    mixins: [SliderAutoplay, SliderDrag, SliderNav, Resize],
 
     props: {
         clsActivated: Boolean,
@@ -79,12 +80,6 @@ export default {
 
         length() {
             return this.slides.length;
-        },
-    },
-
-    events: {
-        itemshown() {
-            this.$update(this.list);
         },
     },
 

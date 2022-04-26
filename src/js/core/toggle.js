@@ -1,3 +1,4 @@
+import Lazyload from '../mixin/lazyload';
 import Media from '../mixin/media';
 import Togglable from '../mixin/togglable';
 import {
@@ -15,6 +16,7 @@ import {
     pointerEnter,
     pointerLeave,
     queryAll,
+    ready,
     trigger,
     within,
 } from 'uikit-util';
@@ -22,7 +24,7 @@ import {
 const KEY_SPACE = 32;
 
 export default {
-    mixins: [Media, Togglable],
+    mixins: [Lazyload, Media, Togglable],
 
     args: 'target',
 
@@ -40,12 +42,6 @@ export default {
         queued: true,
     },
 
-    connected() {
-        if (!includes(this.mode, 'media') && !isFocusable(this.$el)) {
-            attr(this.$el, 'tabindex', '0');
-        }
-    },
-
     computed: {
         target: {
             get({ href, target }, $el) {
@@ -59,6 +55,17 @@ export default {
 
             immediate: true,
         },
+    },
+
+    connected() {
+        if (!includes(this.mode, 'media') && !isFocusable(this.$el)) {
+            attr(this.$el, 'tabindex', '0');
+        }
+
+        this.lazyload(this.$el, this.target);
+
+        // check for target
+        ready(() => this.$emit());
     },
 
     events: [
@@ -117,7 +124,7 @@ export default {
                 }
 
                 // Skip if state does not change e.g. hover + focus received
-                if (this._showState && show === (expanded !== this._showState)) {
+                if (this._showState && show && expanded !== this._showState) {
                     // Ensure reset if state has changed through click
                     if (!show) {
                         this._showState = null;
@@ -149,15 +156,7 @@ export default {
         {
             name: 'click',
 
-            filter() {
-                return includes(this.mode, 'click');
-            },
-
             handler(e) {
-                if (this._preventClick) {
-                    return (this._preventClick = null);
-                }
-
                 let link;
                 if (
                     closest(e.target, 'a[href="#"], a[href=""]') ||
@@ -166,6 +165,14 @@ export default {
                             (link.hash && matches(this.target, link.hash))))
                 ) {
                     e.preventDefault();
+                }
+
+                if (this._preventClick) {
+                    return (this._preventClick = null);
+                }
+
+                if (!includes(this.mode, 'click')) {
+                    return;
                 }
 
                 this.toggle();
@@ -187,22 +194,25 @@ export default {
                 }
             },
         },
+
+        {
+            name: 'mediachange',
+
+            filter() {
+                return includes(this.mode, 'media');
+            },
+
+            el() {
+                return this.target;
+            },
+
+            handler(e, mediaObj) {
+                if (mediaObj.matches ^ this.isToggled(this.target)) {
+                    this.toggle();
+                }
+            },
+        },
     ],
-
-    update: {
-        read() {
-            return includes(this.mode, 'media') && this.media ? { match: this.matchMedia } : false;
-        },
-
-        write({ match }) {
-            const toggled = this.isToggled(this.target);
-            if (match ? !toggled : toggled) {
-                this.toggle();
-            }
-        },
-
-        events: ['resize'],
-    },
 
     methods: {
         async toggle(type) {

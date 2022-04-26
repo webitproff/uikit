@@ -1,4 +1,4 @@
-import { addClass, ajax, matches, noop, on, removeClass, trigger } from 'uikit-util';
+import { addClass, ajax, matches, noop, on, removeClass, toArray, trigger } from 'uikit-util';
 
 export default {
     props: {
@@ -92,6 +92,8 @@ export default {
 
     methods: {
         async upload(files) {
+            files = toArray(files);
+
             if (!files.length) {
                 return;
             }

@@ -14,6 +14,8 @@
 @navbar-dropdown-background:                    @global-background;
 @navbar-dropdown-grid-gutter-horizontal:        (@navbar-dropdown-padding * 2);
 
+@navbar-dropdown-nav-subtitle-font-size:        12px;
+
 //
 // New
 //
@@ -109,6 +111,8 @@
 
 .hook-navbar-dropdown-nav-item-hover() {}
 
+.hook-navbar-dropdown-nav-subtitle() {}
+
 .hook-navbar-dropdown-nav-header() {}
 
 .hook-navbar-dropdown-nav-divider() {}
@@ -117,9 +121,7 @@
 // Dropbar
 // ========================================================================
 
-.hook-navbar-dropbar() {}
-
-.hook-navbar-dropbar-slide() { box-shadow: @navbar-dropbar-box-shadow; }
+.hook-navbar-dropbar() { box-shadow: @navbar-dropbar-box-shadow; }
 
 
 // Miscellaneous

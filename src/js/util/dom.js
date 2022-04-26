@@ -33,9 +33,7 @@ export const after = applyFn('after');
 function applyFn(fn) {
     return function (ref, element) {
         const nodes = toNodes(isString(element) ? fragment(element) : element);
-        if (nodes.length) {
-            $(ref)[fn](...nodes);
-        }
+        $(ref)?.[fn](...nodes);
         return unwrapSingle(nodes);
     };
 }
@@ -59,7 +57,7 @@ export function wrapAll(element, structure) {
 export function wrapInner(element, structure) {
     return toNodes(
         toNodes(element).map((element) =>
-            element.hasChildNodes
+            element.hasChildNodes()
                 ? wrapAll(toNodes(element.childNodes), structure)
                 : append(element, structure)
         )

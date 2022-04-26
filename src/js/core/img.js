@@ -8,22 +8,22 @@ import {
     escape,
     fragment,
     hasAttr,
+    inBrowser,
     includes,
     isArray,
     isEmpty,
     isTag,
+    observeIntersection,
     parent,
     parseOptions,
     queryAll,
     removeAttr,
     startsWith,
-    toFloat,
     toPx,
     trigger,
 } from 'uikit-util';
 
-const nativeLazyLoad = 'loading' in HTMLImageElement.prototype;
-const nativeIsIntersecting = 'isIntersecting' in IntersectionObserverEntry.prototype; // Old chromium based browsers (UC Browser) did not implement `isIntersecting`
+const nativeLazyLoad = inBrowser && 'loading' in HTMLImageElement.prototype;
 
 export default {
     args: 'dataSrc',
@@ -46,76 +46,46 @@ export default {
         loading: 'lazy',
     },
 
-    computed: {
-        target: {
-            get({ target }) {
-                return [this.$el, ...queryAll(target, this.$el)];
-            },
-
-            watch() {
-                this.observe();
-            },
-        },
-    },
-
     connected() {
-        if (this.loading !== 'lazy' || !window.IntersectionObserver || !nativeIsIntersecting) {
+        if (this.loading !== 'lazy') {
             this.load();
             return;
         }
+
+        const target = [this.$el, ...queryAll(this.$props.target, this.$el)];
 
         if (nativeLazyLoad && isImg(this.$el)) {
             this.$el.loading = 'lazy';
             setSrcAttrs(this.$el);
 
-            if (this.target.length === 1) {
+            if (target.length === 1) {
                 return;
             }
         }
 
         ensureSrcAttribute(this.$el);
 
-        const rootMargin = `${toPx(this.offsetTop, 'height')}px ${toPx(
-            this.offsetLeft,
-            'width'
-        )}px`;
-        this.observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
+        this.registerObserver(
+            observeIntersection(
+                target,
+                (entries, observer) => {
                     this.load();
-                    this.observer.disconnect();
+                    observer.disconnect();
+                },
+                {
+                    rootMargin: `${toPx(this.offsetTop, 'height')}px ${toPx(
+                        this.offsetLeft,
+                        'width'
+                    )}px`,
                 }
-            },
-            { rootMargin }
+            )
         );
-        this.observe();
     },
 
     disconnected() {
         if (this._data.image) {
             this._data.image.onload = '';
         }
-
-        this.observer?.disconnect();
-    },
-
-    update: {
-        write(store) {
-            if (!this.observer || isImg(this.$el)) {
-                return false;
-            }
-
-            const srcset = data(this.$el, 'data-srcset');
-            if (srcset && window.devicePixelRatio !== 1) {
-                const bgSize = css(this.$el, 'backgroundSize');
-                if (bgSize.match(/^(auto\s?)+$/) || toFloat(bgSize) === store.bgSize) {
-                    store.bgSize = getSourceSize(srcset, data(this.$el, 'sizes'));
-                    css(this.$el, 'backgroundSize', `${store.bgSize}px`);
-                }
-            }
-        },
-
-        events: ['resize'],
     },
 
     methods: {
@@ -131,14 +101,6 @@ export default {
             removeAttr(image, 'loading');
             setSrcAttrs(this.$el, image.currentSrc);
             return (this._data.image = image);
-        },
-
-        observe() {
-            if (this._connected && !this._data.image) {
-                for (const el of this.target) {
-                    this.observer.observe(el);
-                }
-            }
         },
     },
 };
@@ -213,43 +175,6 @@ function parseSources(sources) {
     }
 
     return sources.filter((source) => !isEmpty(source));
-}
-
-const sizesRe = /\s*(.*?)\s*(\w+|calc\(.*?\))\s*(?:,|$)/g;
-function sizesToPixel(sizes) {
-    let matches;
-
-    sizesRe.lastIndex = 0;
-
-    while ((matches = sizesRe.exec(sizes))) {
-        if (!matches[1] || window.matchMedia(matches[1]).matches) {
-            matches = evaluateSize(matches[2]);
-            break;
-        }
-    }
-
-    return matches || '100vw';
-}
-
-const sizeRe = /\d+(?:\w+|%)/g;
-const additionRe = /[+-]?(\d+)/g;
-function evaluateSize(size) {
-    return startsWith(size, 'calc')
-        ? size
-              .slice(5, -1)
-              .replace(sizeRe, (size) => toPx(size))
-              .replace(/ /g, '')
-              .match(additionRe)
-              .reduce((a, b) => a + +b, 0)
-        : size;
-}
-
-const srcSetRe = /\s+\d+w\s*(?:,|$)/g;
-function getSourceSize(srcset, sizes) {
-    const srcSize = toPx(sizesToPixel(sizes));
-    const descriptors = (srcset.match(srcSetRe) || []).map(toFloat).sort((a, b) => a - b);
-
-    return descriptors.filter((size) => size >= srcSize)[0] || descriptors.pop() || '';
 }
 
 function ensureSrcAttribute(el) {

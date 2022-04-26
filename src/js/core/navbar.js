@@ -16,6 +16,7 @@ import {
     isVisible,
     matches,
     noop,
+    offset,
     once,
     parent,
     query,
@@ -25,8 +26,6 @@ import {
     Transition,
     within,
 } from 'uikit-util';
-
-const navItem = '.uk-navbar-nav > li > a, .uk-navbar-item, .uk-navbar-toggle';
 
 export default {
     mixins: [Class, Container],
@@ -42,13 +41,12 @@ export default {
         delayShow: Number,
         delayHide: Number,
         dropbar: Boolean,
-        dropbarMode: String,
         dropbarAnchor: Boolean,
         duration: Number,
     },
 
     data: {
-        dropdown: navItem,
+        dropdown: '.uk-navbar-nav > li > a, .uk-navbar-item, .uk-navbar-toggle',
         align: isRtl ? 'right' : 'left',
         clsDrop: 'uk-navbar-dropdown',
         mode: undefined,
@@ -59,17 +57,14 @@ export default {
         flip: 'x',
         boundary: true,
         dropbar: false,
-        dropbarMode: 'slide',
         dropbarAnchor: false,
         duration: 200,
-        forceHeight: true,
-        selMinHeight: navItem,
         container: false,
     },
 
     computed: {
-        boundary({ boundary, boundaryAlign }, $el) {
-            return boundary === true || boundaryAlign ? $el : boundary;
+        boundary({ boundary }, $el) {
+            return boundary === true ? $el : boundary;
         },
 
         dropbarAnchor({ dropbarAnchor }, $el) {
@@ -137,8 +132,22 @@ export default {
             immediate: true,
         },
 
-        toggles({ dropdown }, $el) {
-            return $$(dropdown, $el);
+        toggles: {
+            get({ dropdown }, $el) {
+                return $$(dropdown, $el);
+            },
+
+            watch() {
+                const justify = hasClass(this.$el, 'uk-navbar-justify');
+                for (const container of $$(
+                    '.uk-navbar-nav, .uk-navbar-left, .uk-navbar-right',
+                    this.$el
+                )) {
+                    css(container, 'flexGrow', justify ? $$(this.dropdown, container).length : '');
+                }
+            },
+
+            immediate: true,
         },
     },
 
@@ -276,10 +285,16 @@ export default {
                 return this.dropbar;
             },
 
-            handler() {
+            handler(_, { $el }) {
+                if (!hasClass($el, this.clsDrop)) {
+                    return;
+                }
+
                 if (!parent(this.dropbar)) {
                     after(this.dropbarAnchor || this.$el, this.dropbar);
                 }
+
+                addClass($el, `${this.clsDrop}-dropbar`);
             },
         },
 
@@ -294,21 +309,15 @@ export default {
                 return this.dropbar;
             },
 
-            handler(_, { $el, dir }) {
+            handler(_, { $el, pos: [dir] = [] }) {
                 if (!hasClass($el, this.clsDrop)) {
                     return;
                 }
 
-                if (this.dropbarMode === 'slide') {
-                    addClass(this.dropbar, 'uk-navbar-dropbar-slide');
-                }
-
-                this.clsDrop && addClass($el, `${this.clsDrop}-dropbar`);
-
                 if (dir === 'bottom') {
                     this.transitionTo(
-                        $el.offsetHeight +
-                            toFloat(css($el, 'marginTop')) +
+                        offset($el).bottom -
+                            offset(this.dropbar).top +
                             toFloat(css($el, 'marginBottom')),
                         $el
                     );

@@ -1,9 +1,11 @@
 import Class from '../mixin/class';
+import Lazyload from '../mixin/lazyload';
 import { default as Togglable, toggleHeight } from '../mixin/togglable';
 import {
     $,
     $$,
     attr,
+    fastdom,
     filter,
     getIndex,
     hasClass,
@@ -17,7 +19,7 @@ import {
 } from 'uikit-util';
 
 export default {
-    mixins: [Class, Togglable],
+    mixins: [Class, Lazyload, Togglable],
 
     props: {
         targets: String,
@@ -46,7 +48,7 @@ export default {
     computed: {
         items: {
             get({ targets }, $el) {
-                return $$(targets, $el);
+                return $$(targets, $el).filter((el) => $(this.content, el));
             },
 
             watch(items, prev) {
@@ -71,6 +73,10 @@ export default {
         toggles({ toggle }) {
             return this.items.map((item) => $(toggle, item));
         },
+    },
+
+    connected() {
+        this.lazyload();
     },
 
     events: [
@@ -130,9 +136,11 @@ export default {
 
                     if (show) {
                         const toggle = $(this.$props.toggle, el);
-                        if (!isInView(toggle)) {
-                            scrollIntoView(toggle, { offset: this.offset });
-                        }
+                        fastdom.read(() => {
+                            if (!isInView(toggle)) {
+                                scrollIntoView(toggle, { offset: this.offset });
+                            }
+                        });
                     }
                 });
             }
