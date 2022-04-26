@@ -7,6 +7,7 @@
 - Add position shifting to Drop and Dropdown components
 - Add axis flipping if overflowing on both sides to Drop and Dropdown components
 - Add `max-width` to prevent overflowing the viewport to Drop and Dropdown components
+- Add `display` option to Drop and Dropdown components
 - Add support for negative `start` value in Sticky component
 - Add `overflow-flip` option to Sticky component
 - Add navbar justify to Navbar component
@@ -29,6 +30,7 @@
 - Fix dropbar dropdown alignment if boundary-align is true
 - Fix viewport helper functions take border into account
 - Fix Sticky component responsiveness on window resize
+- Fix Cover component correctly applies ratio if only one of width/height is provided
 
 ## 3.13.10 (April 20, 2022)
 
