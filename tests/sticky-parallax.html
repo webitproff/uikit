@@ -12,45 +12,39 @@
 
     <body style="padding-bottom: 200vh;">
 
-        <!-- uk-position-relative is needed because of the test toolbar -->
-        <div class="uk-position-relative">
+        <div class="uk-section uk-position-z-index-negative uk-flex uk-flex-center uk-flex-middle uk-text-center uk-background-cover uk-light" uk-sticky="overflow-flip: true; end: 100%" uk-height-viewport data-src="https://images.unsplash.com/photo-1500964757637-c85e8a162699?fit=crop&w=1920&h=1200&q=80" uk-parallax="target: +* +*; end: 100%; bgy: -300; easing: 0;" uk-img>
+            <div class="uk-container">
 
-            <div class="uk-section uk-position-z-index-negative uk-flex uk-flex-center uk-flex-middle uk-text-center uk-background-cover uk-light" uk-sticky="overflow-flip: true; end: 100%" uk-height-viewport data-src="https://images.unsplash.com/photo-1500964757637-c85e8a162699?fit=crop&w=1920&h=1200&q=80" uk-parallax="target: +* +*; end: 100%; bgy: -300; easing: 0;" uk-img>
-                <div class="uk-container">
+                <h1 class="uk-heading-2xlarge" uk-parallax="target: !.uk-section +* +*; end: 100%; y: -400; easing: 0;">Covered</h1>
 
-                    <h1 class="uk-heading-2xlarge" uk-parallax="target: !.uk-section +* +*; end: 100%; y: -400; easing: 0;">Covered</h1>
+            </div>
+        </div>
 
-                </div>
+        <div id="test" class="uk-background-default uk-padding uk-flex uk-flex-center uk-flex-middle uk-text-center" uk-height-viewport>
+            <h1 class="uk-heading-medium">Cover previous section.<br>Reveal next section.</h1>
+        </div>
+
+        <div class="uk-section uk-position-z-index-negative uk-flex uk-flex-center uk-flex-middle uk-text-center uk-background-cover uk-light" uk-sticky="position: bottom; overflow-flip: true; start: -100%; end: 0" uk-height-viewport data-src="https://images.unsplash.com/photo-1511300636408-a63a89df3482?fit=crop&w=1920&h=1200&q=80" uk-parallax="target: +* +*; end: 100%; bgy: -300; easing: 0;" uk-img>
+            <div class="uk-container">
+
+                <h1 class="uk-heading-2xlarge" uk-parallax="target: #test; start: 100%; y: 400,0; easing: 0;">Revealed</h1>
+
+            </div>
+        </div>
+
+        <div class="uk-section uk-section-default uk-text-center" style="margin-top: 100vh">
+
+            <div class="uk-container">
+
+                <h1 class="uk-heading-xlarge">Scale 100vw</h1>
+
             </div>
 
-            <div id="test" class="uk-background-default uk-padding uk-flex uk-flex-center uk-flex-middle uk-text-center" uk-height-viewport>
-                <h1 class="uk-heading-medium">Cover previous section.<br>Reveal next section.</h1>
+            <div class="uk-margin-large-top" >
+                <img src="https://images.unsplash.com/photo-1523359247812-29dde5ac53a0?fit=crop&w=1920&h=1000&q=80" width="800" alt="" class="uk-transform-origin-top-center " uk-parallax="scale: 1,100vw; start: 50%; end: 50vh">
             </div>
 
-            <div class="uk-section uk-position-z-index-negative uk-flex uk-flex-center uk-flex-middle uk-text-center uk-background-cover uk-light" uk-sticky="position: bottom; overflow-flip: true; start: -100%; end: 0" uk-height-viewport data-src="https://images.unsplash.com/photo-1511300636408-a63a89df3482?fit=crop&w=1920&h=1200&q=80" uk-parallax="target: +* +*; end: 100%; bgy: -300; easing: 0;" uk-img>
-                <div class="uk-container">
-
-                    <h1 class="uk-heading-2xlarge" uk-parallax="target: #test; start: 100%; y: 400,0; easing: 0;">Revealed</h1>
-
-                </div>
-            </div>
-
-            <div class="uk-section uk-section-default uk-text-center" style="margin-top: 100vh">
-
-                <div class="uk-container">
-    
-                    <h1 class="uk-heading-xlarge">Scale 100vw</h1>
-    
-                </div>
-
-                <div class="uk-margin-large-top" >
-                    <img src="https://images.unsplash.com/photo-1523359247812-29dde5ac53a0?fit=crop&w=1920&h=1000&q=80" width="800" alt="" class="uk-transform-origin-top-center " uk-parallax="scale: 1,100vw; start: 50%; end: 50vh">
-                </div>
-    
-                
-            </div>
-        
-
+            
         </div>
 
     </body>
