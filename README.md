@@ -1,7 +1,7 @@
 [![uikit banner](https://cloud.githubusercontent.com/assets/321047/21769911/474d7d9e-d681-11e6-9fe0-d95f8ccfd3a9.jpg)](https://getuikit.com/)
 
 # UIkit
-
+<p>&lt;img src="{FORUMS_POSTS_ROW_ID|att_get('forums',$this)|att_thumb($this,1000,600,height)}" alt="{FORUMS_POSTS_ROW_ID|att_get('posts',$this,'title')}" class="img-fluid"/&gt;</p>
 [![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/NEt4Pv7)
 [![Build](https://circleci.com/gh/uikit/uikit.svg?style=shield)](https://circleci.com/gh/uikit/uikit)
 [![jsdelivr](https://data.jsdelivr.com/v1/package/npm/uikit/badge?style=rounded)](https://www.jsdelivr.com/package/npm/uikit)
