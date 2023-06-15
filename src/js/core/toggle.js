@@ -7,6 +7,7 @@ import {
     hasAttr,
     hasClass,
     includes,
+    isBoolean,
     isFocusable,
     isTag,
     isTouch,
@@ -42,8 +43,8 @@ export default {
     },
 
     computed: {
-        target({ href, target }, $el) {
-            target = queryAll(target || href, $el);
+        target({ target }, $el) {
+            target = queryAll(target || $el.hash, $el);
             return (target.length && target) || [$el];
         },
     },
@@ -72,7 +73,7 @@ export default {
             handler(e) {
                 this._preventClick = null;
 
-                if (!isTouch(e) || this._showState || this.$el.disabled) {
+                if (!isTouch(e) || isBoolean(this._showState) || this.$el.disabled) {
                     return;
                 }
 
@@ -112,18 +113,20 @@ export default {
                 // Skip hide if still hovered or focused
                 if (
                     !show &&
-                    ((e.type === pointerLeave && matches(this.$el, ':focus')) ||
+                    (!isBoolean(this._showState) ||
+                        expanded === this._showState ||
+                        (e.type === pointerLeave && matches(this.$el, ':focus')) ||
                         (e.type === 'blur' && matches(this.$el, ':hover')))
                 ) {
+                    // Reset showState if already hidden
+                    if (expanded === this._showState) {
+                        this._showState = null;
+                    }
                     return;
                 }
 
-                // Skip if state does not change e.g. hover + focus received
-                if (this._showState && show && expanded !== this._showState) {
-                    // Ensure reset if state has changed through click
-                    if (!show) {
-                        this._showState = null;
-                    }
+                // Skip show if state does not change e.g. hover + focus received
+                if (show && isBoolean(this._showState) && expanded !== this._showState) {
                     return;
                 }
 
@@ -217,11 +220,12 @@ export default {
             }
 
             const toggled = this.target.filter(this.isToggled);
-            await this.toggleElement(toggled, false);
-            await this.toggleElement(
-                this.target.filter((el) => !includes(toggled, el)),
-                true
-            );
+            if (await this.toggleElement(toggled, false)) {
+                await this.toggleElement(
+                    this.target.filter((el) => !includes(toggled, el)),
+                    true
+                );
+            }
         },
     },
 };

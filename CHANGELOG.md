@@ -1,16 +1,80 @@
 # Changelog
 
-## WIP
+## 3.16.21 (June 13, 2023)
+
+### Fixed
+
+- Fix release changelog
+
+## 3.16.20 (June 13, 2023)
+
+### Fixed
+
+- Fix Toggle component with `cls` option in hover mode
+- Fix `aria-roledescription` attribute in Slider nav component
+
+## 3.16.19 (May 24, 2023)
+
+### Fixed
+
+- Fix Parallax component responsiveness on resize of scroll container
+
+## 3.16.18 (May 22, 2023)
+
+### Changed
+
+- Modal prompt dialog selects text in input
+- Sticky component sets position context with `!important` modifier
+
+### Fixed
+
+- Fix keyboard navigation in Navbar component
+
+## 3.16.17 (May 9, 2023)
+
+### Added
+
+- Add i18n labels for Search Icons
+
+### Fixed
+
+- Fix Toggle component uses anchor element's hash as target fallback
+
+## 3.16.16 (May 8, 2023)
+
+### Removed
+
+- Remove `Deferred` util class
+
+### Fixed
+
+- Fix auto pausing videos in Video component
+- Fix Tooltips are not removed from Dom if showing is prevented
+- Fix Switcher component not initializing properly
+- Fix Tooltip generates duplicate id
+- Fix calculating sets in Slider component with `center` option enabled
+- Fix JavaScript error in Parallax component
+
+## 3.16.15 (April 14, 2023)
+
+### Fixed
+
+- Fix Drop component height if `inset: true` and `stretch: true`
+- Fix Drop component `maxWidth` property with fractional viewport view
+- Fix Sticky component listens for resize of itself as long as no transition is in Progress
+
+## 3.16.14 (April 6, 2023)
 
 ### Changed
 
 - Make Navbar/Dropnav items tabbable again
 
-### Fix
+### Fixed
 
 - Fix using `rgb` and `rgba` values in color stops in Parallax component
 - Fix setting `will-change` css property in Parallax component for camelCased props
 - Fix Slider removes `tabindex` from focusable elements in slides
+- Fix class `uk-svg` gets added to `<svg>` element only in Svg component 
 
 ## 3.16.13 (March 28, 2023)
 

@@ -17,6 +17,7 @@ import {
     matches,
     MouseTracker,
     observeResize,
+    observeViewportResize,
     offset,
     offsetViewport,
     on,
@@ -89,8 +90,8 @@ export default {
         },
 
         target({ target, targetX, targetY }, $el) {
-            targetX = targetX || target || this.targetEl;
-            targetY = targetY || target || this.targetEl;
+            targetX ||= target || this.targetEl;
+            targetY ||= target || this.targetEl;
 
             return [
                 targetX === true ? window : query(targetX, $el),
@@ -434,7 +435,7 @@ export default {
                     css(this.$el, {
                         [prop]:
                             (targetOffset[start] > elOffset[start]
-                                ? targetOffset[start] -
+                                ? targetOffset[this.inset ? end : start] -
                                   Math.max(
                                       offset(this.boundary[i])[start],
                                       viewports[i][start] + viewportOffset
@@ -442,7 +443,7 @@ export default {
                                 : Math.min(
                                       offset(this.boundary[i])[end],
                                       viewports[i][end] - viewportOffset
-                                  ) - targetOffset[end]) - positionOffset,
+                                  ) - targetOffset[this.inset ? start : end]) - positionOffset,
                         [`overflow-${axis}`]: 'auto',
                     });
 
@@ -475,12 +476,11 @@ function createToggleComponent(drop) {
 
 function listenForResize(drop) {
     const update = () => drop.$emit();
-    const off = on(window, 'resize', update);
-    const observer = observeResize(overflowParents(drop.$el).concat(drop.target), update);
-    return () => {
-        observer.disconnect();
-        off();
-    };
+    const off = [
+        observeViewportResize(update),
+        observeResize(overflowParents(drop.$el).concat(drop.target), update),
+    ];
+    return () => off.map((observer) => observer.disconnect());
 }
 
 function listenForScroll(drop) {

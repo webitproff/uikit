@@ -16,7 +16,7 @@ import {
     includes,
     index,
     isTag,
-    scrollParents,
+    scrollParent,
     sumBy,
     toFloat,
     toggleClass,
@@ -166,7 +166,7 @@ export default {
     },
 
     methods: {
-        async toggle(item, animate) {
+        toggle(item, animate) {
             item = this.items[getIndex(item, this.items)];
             let items = [item];
             const activeItems = filter(this.items, `.${this.clsOpen}`);
@@ -179,7 +179,7 @@ export default {
                 return;
             }
 
-            await Promise.all(
+            return Promise.all(
                 items.map((el) =>
                     this.toggleElement(el, !includes(activeItems, el), (el, show) => {
                         toggleClass(el, this.clsOpen, show);
@@ -234,13 +234,13 @@ async function transition(el, show, { content, duration, velocity, transition })
 }
 
 function keepScrollPosition(el) {
-    const [scrollParent] = scrollParents(el, true);
+    const scrollElement = scrollParent(el, true);
     let frame;
     (function scroll() {
         frame = requestAnimationFrame(() => {
             const { top } = el.getBoundingClientRect();
             if (top < 0) {
-                scrollParent.scrollTop += top;
+                scrollElement.scrollTop += top;
             }
             scroll();
         });

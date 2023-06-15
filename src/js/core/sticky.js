@@ -1,6 +1,6 @@
 import Class from '../mixin/class';
 import Media from '../mixin/media';
-import { resize, scroll } from '../api/observables';
+import { resize, scroll, viewport } from '../api/observables';
 import {
     $,
     addClass,
@@ -17,6 +17,7 @@ import {
     isVisible,
     noop,
     offsetPosition,
+    once,
     parent,
     query,
     remove,
@@ -97,27 +98,12 @@ export default {
     },
 
     observe: [
-        resize({
-            handler() {
-                !this.isFixed && this.$emit('resize');
-            },
-        }),
-        resize({ target: () => [document.documentElement] }),
+        resize({ target: ({ $el }) => [$el, document.scrollingElement] }),
+        viewport(),
         scroll(),
     ],
 
     events: [
-        {
-            name: 'resize',
-
-            el() {
-                return [window, window.visualViewport];
-            },
-
-            handler() {
-                this.$emit('resizeViewport');
-            },
-        },
         {
             name: 'load hashchange popstate',
 
@@ -150,18 +136,31 @@ export default {
                 });
             },
         },
+        {
+            name: 'transitionstart',
+
+            capture: true,
+
+            handler() {
+                this.transitionInProgress = once(
+                    this.$el,
+                    'transitionend transitioncancel',
+                    () => (this.transitionInProgress = null)
+                );
+            },
+        },
     ],
 
     update: [
         {
-            read({ height, width, margin, sticky }, types) {
+            read({ height, width, margin, sticky }) {
                 this.inactive = !this.matchMedia || !isVisible(this.$el);
 
                 if (this.inactive) {
                     return;
                 }
 
-                const hide = this.isFixed && types.has('resize') && !sticky;
+                const hide = this.isFixed && !this.transitionInProgress;
                 if (hide) {
                     preventTransition(this.selTarget);
                     this.hide();
@@ -260,7 +259,7 @@ export default {
                 (sticky ? before : after)(this.$el, placeholder);
             },
 
-            events: ['resize', 'resizeViewport'],
+            events: ['resize'],
         },
 
         {
@@ -417,8 +416,7 @@ export default {
                     position = 'absolute';
                 }
 
-                css(this.$el, { position, width });
-                css(this.$el, 'marginTop', 0, 'important');
+                css(this.$el, { position, width, marginTop: 0 }, 'important');
             }
 
             if (overflow) {

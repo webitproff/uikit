@@ -1,4 +1,4 @@
-/*! UIkit 3.16.13 | https://www.getuikit.com | (c) 2014 - 2023 YOOtheme | MIT License */
+/*! UIkit 3.16.21 | https://www.getuikit.com | (c) 2014 - 2023 YOOtheme | MIT License */
 
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
@@ -190,14 +190,6 @@
     function memoize(fn) {
       const cache = /* @__PURE__ */ Object.create(null);
       return (key) => cache[key] || (cache[key] = fn(key));
-    }
-    class Deferred {
-      constructor() {
-        this.promise = new Promise((resolve, reject) => {
-          this.reject = reject;
-          this.resolve = resolve;
-        });
-      }
     }
 
     function attr(element, name, value) {
@@ -1092,35 +1084,11 @@
       if (hasResizeObserver) {
         return observe$1(ResizeObserver, targets, cb, options);
       }
-      initResizeListener();
-      listeners.add(cb);
-      return {
-        observe: noop,
-        unobserve: noop,
-        disconnect() {
-          listeners.delete(cb);
-        }
-      };
+      const off = [on(window, "load resize", cb), on(document, "loadedmetadata load", cb, true)];
+      return { disconnect: () => off.map((cb2) => cb2()) };
     }
-    let listeners;
-    function initResizeListener() {
-      if (listeners) {
-        return;
-      }
-      listeners = /* @__PURE__ */ new Set();
-      let pendingResize;
-      const handleResize = () => {
-        if (pendingResize) {
-          return;
-        }
-        pendingResize = true;
-        requestAnimationFrame(() => pendingResize = false);
-        for (const listener of listeners) {
-          listener();
-        }
-      };
-      on(window, "load resize", handleResize);
-      on(document, "loadedmetadata load", handleResize, true);
+    function observeViewportResize(cb) {
+      return { disconnect: on([window, window.visualViewport], "resize", cb) };
     }
     function observeMutation(targets, cb, options) {
       return observe$1(MutationObserver, targets, cb, options);
@@ -1282,7 +1250,7 @@
       if (!isVisible(element)) {
         return 0;
       }
-      const [scrollElement] = scrollParents(element, true);
+      const scrollElement = scrollParent(element, true);
       const { scrollHeight, scrollTop } = scrollElement;
       const { height: viewportHeight } = offsetViewport(scrollElement);
       const maxScroll = scrollHeight - viewportHeight;
@@ -1304,6 +1272,9 @@
           (parent) => css(parent, "overflow").split(" ").some((prop) => includes(["auto", "scroll", ...props], prop)) && (!scrollable || parent.scrollHeight > offsetViewport(parent).height)
         )
       ).reverse();
+    }
+    function scrollParent(...args) {
+      return scrollParents(...args)[0];
     }
     function overflowParents(element) {
       return scrollParents(element, false, ["hidden", "clip"]);
@@ -1334,7 +1305,8 @@
         } else {
           rect[start] += toFloat(css(viewportElement, `border-${start}-width`));
         }
-        rect[prop] = rect[dir] = viewportElement[`client${ucfirst(prop)}`];
+        const subpixel = rect[prop] % 1;
+        rect[prop] = rect[dir] = viewportElement[`client${ucfirst(prop)}`] - (subpixel ? subpixel < 0.5 ? -subpixel : 1 - subpixel : 0);
         rect[end] = rect[prop] + rect[start];
       }
       return rect;
@@ -1528,7 +1500,6 @@
         $: $,
         $$: $$,
         Animation: Animation,
-        Deferred: Deferred,
         Dimensions: Dimensions,
         MouseTracker: MouseTracker,
         Transition: Transition,
@@ -1606,6 +1577,7 @@
         observeIntersection: observeIntersection,
         observeMutation: observeMutation,
         observeResize: observeResize,
+        observeViewportResize: observeViewportResize,
         off: off,
         offset: offset,
         offsetPosition: offsetPosition,
@@ -1638,6 +1610,7 @@
         removeClasses: removeClasses,
         replaceClass: replaceClass,
         scrollIntoView: scrollIntoView,
+        scrollParent: scrollParent,
         scrollParents: scrollParents,
         scrolledOver: scrolledOver,
         selFocusable: selFocusable,
@@ -2158,7 +2131,7 @@
     };
     App.util = util;
     App.options = {};
-    App.version = "3.16.13";
+    App.version = "3.16.21";
 
     const PREFIX = "uk-";
     const DATA = "__uikit__";
@@ -2236,7 +2209,7 @@
         component2.options = mergeOptions(component2.options, mixin);
       };
       App.extend = function(options) {
-        options = options || {};
+        options || (options = {});
         const Super = this;
         const Sub = function UIkitComponent(options2) {
           init$1(this, options2);
@@ -2434,9 +2407,9 @@
         }
       },
       methods: {
-        toggleElement(targets, toggle, animate) {
-          return new Promise(
-            (resolve) => Promise.all(
+        async toggleElement(targets, toggle, animate) {
+          try {
+            await Promise.all(
               toNodes(targets).map((el) => {
                 const show = isBoolean(toggle) ? toggle : !this.isToggled(el);
                 if (!trigger(el, `before${show ? "show" : "hide"}`, [this])) {
@@ -2455,8 +2428,11 @@
                   return Promise.reject();
                 }) : done();
               })
-            ).then(resolve, noop)
-          );
+            );
+            return true;
+          } catch (e) {
+            return false;
+          }
         },
         isToggled(el = this.$el) {
           el = toNode(el);
@@ -2622,18 +2598,19 @@
         ...options
       });
     }
+    function viewport() {
+      return observe((target, handler) => observeViewportResize(handler));
+    }
     function scroll$1(options) {
       return observe(
-        function(target, handler) {
-          return {
-            disconnect: on(target, "scroll", handler, {
-              passive: true,
-              capture: true
-            })
-          };
-        },
+        (target, handler) => ({
+          disconnect: on(target, "scroll", handler, {
+            passive: true,
+            capture: true
+          })
+        }),
         {
-          target: () => window,
+          target: () => document,
           ...options
         },
         "scroll"
@@ -2795,7 +2772,7 @@
         }
       },
       methods: {
-        async toggle(item, animate) {
+        toggle(item, animate) {
           item = this.items[getIndex(item, this.items)];
           let items = [item];
           const activeItems = filter$1(this.items, `.${this.clsOpen}`);
@@ -2805,7 +2782,7 @@
           if (!this.collapsible && activeItems.length < 2 && includes(activeItems, item)) {
             return;
           }
-          await Promise.all(
+          return Promise.all(
             items.map(
               (el) => this.toggleElement(el, !includes(activeItems, el), (el2, show) => {
                 toggleClass(el2, this.clsOpen, show);
@@ -2846,13 +2823,13 @@
       }
     }
     function keepScrollPosition(el) {
-      const [scrollParent] = scrollParents(el, true);
+      const scrollElement = scrollParent(el, true);
       let frame;
       (function scroll() {
         frame = requestAnimationFrame(() => {
           const { top } = el.getBoundingClientRect();
           if (top < 0) {
-            scrollParent.scrollTop += top;
+            scrollElement.scrollTop += top;
           }
           scroll();
         });
@@ -2931,9 +2908,7 @@
           mute(this.$el);
         }
       },
-      observe: intersection({
-        args: { intersecting: false }
-      }),
+      observe: [intersection({ args: { intersecting: false } }), resize()],
       update: {
         read({ visible }) {
           if (!isVideo(this.$el)) {
@@ -2941,17 +2916,18 @@
           }
           return {
             prev: visible,
-            visible: isVisible(this.$el) && css(this.$el, "visibility") !== "hidden",
+            visible: isVisible(this.$el),
             inView: this.inView && isInView(this.$el)
           };
         },
         write({ prev, visible, inView }) {
           if (!visible || this.inView && !inView) {
             pause(this.$el);
-          } else if (this.autoplay === true && !prev || this.inView && inView) {
+          } else if (this.autoplay === true && !prev || inView) {
             play(this.$el);
           }
-        }
+        },
+        events: ["resize"]
       }
     };
 
@@ -2970,7 +2946,7 @@
         }
       },
       observe: resize({
-        target: ({ $el }) => [$el, getPositionedParent($el) || parent($el)]
+        target: ({ $el }) => [getPositionedParent($el) || parent($el)]
       }),
       update: {
         read() {
@@ -3081,7 +3057,7 @@
       }
     };
     function storeScrollPosition(element) {
-      const [scrollElement] = scrollParents(element);
+      const scrollElement = scrollParent(element);
       const { scrollTop } = scrollElement;
       return () => {
         if (scrollTop !== scrollElement.scrollTop) {
@@ -3113,7 +3089,7 @@
           if (e.targetTouches.length !== 1 || matches(e.target, 'input[type="range"')) {
             return;
           }
-          let [{ scrollHeight, clientHeight }] = scrollParents(e.target);
+          let { scrollHeight, clientHeight } = scrollParent(e.target);
           if (clientHeight >= scrollHeight && e.cancelable) {
             e.preventDefault();
           }
@@ -3186,8 +3162,8 @@
           ];
         },
         target({ target, targetX, targetY }, $el) {
-          targetX = targetX || target || this.targetEl;
-          targetY = targetY || target || this.targetEl;
+          targetX || (targetX = target || this.targetEl);
+          targetY || (targetY = target || this.targetEl);
           return [
             targetX === true ? window : query(targetX, $el),
             targetY === true ? window : query(targetY, $el)
@@ -3443,13 +3419,13 @@
               const targetOffset = offset(this.target[i]);
               const elOffset = offset(this.$el);
               css(this.$el, {
-                [prop]: (targetOffset[start] > elOffset[start] ? targetOffset[start] - Math.max(
+                [prop]: (targetOffset[start] > elOffset[start] ? targetOffset[this.inset ? end : start] - Math.max(
                   offset(this.boundary[i])[start],
                   viewports[i][start] + viewportOffset
                 ) : Math.min(
                   offset(this.boundary[i])[end],
                   viewports[i][end] - viewportOffset
-                ) - targetOffset[end]) - positionOffset,
+                ) - targetOffset[this.inset ? start : end]) - positionOffset,
                 [`overflow-${axis}`]: "auto"
               });
               this.positionAt(this.$el, this.target, this.boundary);
@@ -3476,12 +3452,11 @@
     }
     function listenForResize(drop) {
       const update = () => drop.$emit();
-      const off = on(window, "resize", update);
-      const observer = observeResize(overflowParents(drop.$el).concat(drop.target), update);
-      return () => {
-        observer.disconnect();
-        off();
-      };
+      const off = [
+        observeViewportResize(update),
+        observeResize(overflowParents(drop.$el).concat(drop.target), update)
+      ];
+      return () => off.map((observer) => observer.disconnect());
     }
     function listenForScroll(drop) {
       return on([document, ...overflowParents(drop.$el)], "scroll", () => drop.$emit(), {
@@ -3596,10 +3571,6 @@
               boundary: this.boundary === true ? this.$el : this.boundary
             }
           );
-        },
-        items(items) {
-          attr(items, "tabindex", -1);
-          attr(items[0], "tabindex", 0);
         }
       },
       disconnected() {
@@ -3612,38 +3583,26 @@
           delegate() {
             return this.selNavItem;
           },
-          handler({ current, type }) {
+          handler({ current }) {
             const active2 = this.getActive();
             if (active2 && includes(active2.mode, "hover") && active2.targetEl && !within(active2.targetEl, current) && !active2.isDelaying) {
               active2.hide(false);
-            }
-            if (type === "focusin") {
-              for (const toggle of this.items) {
-                attr(toggle, "tabindex", current === toggle ? 0 : -1);
-              }
             }
           }
         },
         {
           name: "keydown",
+          self: true,
           delegate() {
             return this.selNavItem;
           },
           handler(e) {
+            var _a;
             const { current, keyCode } = e;
             const active2 = this.getActive();
-            if (keyCode === keyMap.DOWN && hasAttr(current, "aria-expanded")) {
+            if (keyCode === keyMap.DOWN && (active2 == null ? void 0 : active2.targetEl) === current) {
               e.preventDefault();
-              if (!active2 || active2.targetEl !== current) {
-                current.click();
-                once(
-                  this.dropContainer,
-                  "show",
-                  ({ target }) => focusFirstFocusableElement(target)
-                );
-              } else {
-                focusFirstFocusableElement(active2.$el);
-              }
+              (_a = $(selFocusable, active2.$el)) == null ? void 0 : _a.focus();
             }
             handleNavItemNavigation(e, this.items, active2);
           }
@@ -3835,12 +3794,6 @@
         e.preventDefault();
         (_c = active2.hide) == null ? void 0 : _c.call(active2, false);
         toggles[getIndex(next, toggles, toggles.indexOf(active2.targetEl || current))].focus();
-      }
-    }
-    function focusFirstFocusableElement(el) {
-      var _a;
-      if (!$(":focus", el)) {
-        (_a = $(selFocusable, el)) == null ? void 0 : _a.focus();
       }
     }
 
@@ -4181,7 +4134,7 @@
           let minHeight = "";
           const box = boxModelAdjust(this.$el, "height", "content-box");
           const { body, scrollingElement } = document;
-          const [scrollElement] = scrollParents(this.$el);
+          const scrollElement = scrollParent(this.$el);
           const { height: viewportHeight } = offsetViewport(
             scrollElement === body ? scrollingElement : scrollElement
           );
@@ -4309,45 +4262,45 @@
       }
     };
 
-    var closeIcon = "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" xmlns=\"http://www.w3.org/2000/svg\"><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" x1=\"1\" y1=\"1\" x2=\"13\" y2=\"13\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" x1=\"13\" y1=\"1\" x2=\"1\" y2=\"13\"/></svg>";
+    var closeIcon = "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\"><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" x1=\"1\" y1=\"1\" x2=\"13\" y2=\"13\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" x1=\"13\" y1=\"1\" x2=\"1\" y2=\"13\"/></svg>";
 
-    var closeLarge = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\"><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" x1=\"1\" y1=\"1\" x2=\"19\" y2=\"19\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" x1=\"19\" y1=\"1\" x2=\"1\" y2=\"19\"/></svg>";
+    var closeLarge = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\"><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" x1=\"1\" y1=\"1\" x2=\"19\" y2=\"19\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" x1=\"19\" y1=\"1\" x2=\"1\" y2=\"19\"/></svg>";
 
-    var dropParentIcon = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 3.5 6 8.5 11 3.5\"/></svg>";
+    var dropParentIcon = "<svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 3.5 6 8.5 11 3.5\"/></svg>";
 
-    var marker = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"9\" y=\"4\" width=\"1\" height=\"11\"/><rect x=\"4\" y=\"9\" width=\"11\" height=\"1\"/></svg>";
+    var marker = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\"><rect x=\"9\" y=\"4\" width=\"1\" height=\"11\"/><rect x=\"4\" y=\"9\" width=\"11\" height=\"1\"/></svg>";
 
-    var navParentIcon = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 3.5 6 8.5 11 3.5\"/></svg>";
+    var navParentIcon = "<svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 3.5 6 8.5 11 3.5\"/></svg>";
 
-    var navParentIconLarge = "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 4 7 10 13 4\"/></svg>";
+    var navParentIconLarge = "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 4 7 10 13 4\"/></svg>";
 
-    var navbarParentIcon = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 3.5 6 8.5 11 3.5\"/></svg>";
+    var navbarParentIcon = "<svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" points=\"1 3.5 6 8.5 11 3.5\"/></svg>";
 
-    var navbarToggleIcon = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\"><style>.uk-navbar-toggle-animate svg>[class*=line-]{transition:.2s ease-in-out;transition-property:transform,opacity;transform-origin:center;opacity:1}.uk-navbar-toggle svg>.line-3{opacity:0}.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-3{opacity:1}.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-2{transform:rotate(45deg)}.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-3{transform:rotate(-45deg)}.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-1,.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-4{opacity:0}.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-1{transform:translateY(6px) scaleX(0)}.uk-navbar-toggle-animate[aria-expanded=true] svg>.line-4{transform:translateY(-6px) scaleX(0)}</style><rect class=\"line-1\" y=\"3\" width=\"20\" height=\"2\"/><rect class=\"line-2\" y=\"9\" width=\"20\" height=\"2\"/><rect class=\"line-3\" y=\"9\" width=\"20\" height=\"2\"/><rect class=\"line-4\" y=\"15\" width=\"20\" height=\"2\"/></svg>";
+    var navbarToggleIcon = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\"><style>.uk-navbar-toggle-animate svg&gt;[class*=&quot;line-&quot;]{transition:0.2s ease-in-out;transition-property:transform, opacity;transform-origin:center;opacity:1}.uk-navbar-toggle svg&gt;.line-3{opacity:0}.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-3{opacity:1}.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-2{transform:rotate(45deg)}.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-3{transform:rotate(-45deg)}.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-1,.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-4{opacity:0}.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-1{transform:translateY(6px) scaleX(0)}.uk-navbar-toggle-animate[aria-expanded=&quot;true&quot;] svg&gt;.line-4{transform:translateY(-6px) scaleX(0)}</style><rect class=\"line-1\" y=\"3\" width=\"20\" height=\"2\"/><rect class=\"line-2\" y=\"9\" width=\"20\" height=\"2\"/><rect class=\"line-3\" y=\"9\" width=\"20\" height=\"2\"/><rect class=\"line-4\" y=\"15\" width=\"20\" height=\"2\"/></svg>";
 
-    var overlayIcon = "<svg width=\"40\" height=\"40\" viewBox=\"0 0 40 40\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"19\" y=\"0\" width=\"1\" height=\"40\"/><rect x=\"0\" y=\"19\" width=\"40\" height=\"1\"/></svg>";
+    var overlayIcon = "<svg width=\"40\" height=\"40\" viewBox=\"0 0 40 40\"><rect x=\"19\" y=\"0\" width=\"1\" height=\"40\"/><rect x=\"0\" y=\"19\" width=\"40\" height=\"1\"/></svg>";
 
-    var paginationNext = "<svg width=\"7\" height=\"12\" viewBox=\"0 0 7 12\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.2\" points=\"1 1 6 6 1 11\"/></svg>";
+    var paginationNext = "<svg width=\"7\" height=\"12\" viewBox=\"0 0 7 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.2\" points=\"1 1 6 6 1 11\"/></svg>";
 
-    var paginationPrevious = "<svg width=\"7\" height=\"12\" viewBox=\"0 0 7 12\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.2\" points=\"6 1 1 6 6 11\"/></svg>";
+    var paginationPrevious = "<svg width=\"7\" height=\"12\" viewBox=\"0 0 7 12\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.2\" points=\"6 1 1 6 6 11\"/></svg>";
 
-    var searchIcon = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\"><circle fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" cx=\"9\" cy=\"9\" r=\"7\"/><path fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" d=\"M14,14 L18,18 L14,14 Z\"/></svg>";
+    var searchIcon = "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\"><circle fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" cx=\"9\" cy=\"9\" r=\"7\"/><path fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" d=\"M14,14 L18,18 L14,14 Z\"/></svg>";
 
-    var searchLarge = "<svg width=\"40\" height=\"40\" viewBox=\"0 0 40 40\" xmlns=\"http://www.w3.org/2000/svg\"><circle fill=\"none\" stroke=\"#000\" stroke-width=\"1.8\" cx=\"17.5\" cy=\"17.5\" r=\"16.5\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.8\" x1=\"38\" y1=\"39\" x2=\"29\" y2=\"30\"/></svg>";
+    var searchLarge = "<svg width=\"40\" height=\"40\" viewBox=\"0 0 40 40\"><circle fill=\"none\" stroke=\"#000\" stroke-width=\"1.8\" cx=\"17.5\" cy=\"17.5\" r=\"16.5\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.8\" x1=\"38\" y1=\"39\" x2=\"29\" y2=\"30\"/></svg>";
 
-    var searchNavbar = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><circle fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" cx=\"10.5\" cy=\"10.5\" r=\"9.5\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" x1=\"23\" y1=\"23\" x2=\"17\" y2=\"17\"/></svg>";
+    var searchNavbar = "<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\"><circle fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" cx=\"10.5\" cy=\"10.5\" r=\"9.5\"/><line fill=\"none\" stroke=\"#000\" stroke-width=\"1.1\" x1=\"23\" y1=\"23\" x2=\"17\" y2=\"17\"/></svg>";
 
-    var slidenavNext = "<svg width=\"14\" height=\"24\" viewBox=\"0 0 14 24\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" points=\"1.225,23 12.775,12 1.225,1 \"/></svg>";
+    var slidenavNext = "<svg width=\"14\" height=\"24\" viewBox=\"0 0 14 24\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" points=\"1.225,23 12.775,12 1.225,1\"/></svg>";
 
-    var slidenavNextLarge = "<svg width=\"25\" height=\"40\" viewBox=\"0 0 25 40\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"2\" points=\"4.002,38.547 22.527,20.024 4,1.5 \"/></svg>";
+    var slidenavNextLarge = "<svg width=\"25\" height=\"40\" viewBox=\"0 0 25 40\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"2\" points=\"4.002,38.547 22.527,20.024 4,1.5\"/></svg>";
 
-    var slidenavPrevious = "<svg width=\"14\" height=\"24\" viewBox=\"0 0 14 24\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" points=\"12.775,1 1.225,12 12.775,23 \"/></svg>";
+    var slidenavPrevious = "<svg width=\"14\" height=\"24\" viewBox=\"0 0 14 24\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.4\" points=\"12.775,1 1.225,12 12.775,23\"/></svg>";
 
-    var slidenavPreviousLarge = "<svg width=\"25\" height=\"40\" viewBox=\"0 0 25 40\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"2\" points=\"20.527,1.5 2,20.024 20.525,38.547 \"/></svg>";
+    var slidenavPreviousLarge = "<svg width=\"25\" height=\"40\" viewBox=\"0 0 25 40\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"2\" points=\"20.527,1.5 2,20.024 20.525,38.547\"/></svg>";
 
-    var spinner = "<svg width=\"30\" height=\"30\" viewBox=\"0 0 30 30\" xmlns=\"http://www.w3.org/2000/svg\"><circle fill=\"none\" stroke=\"#000\" cx=\"15\" cy=\"15\" r=\"14\"/></svg>";
+    var spinner = "<svg width=\"30\" height=\"30\" viewBox=\"0 0 30 30\"><circle fill=\"none\" stroke=\"#000\" cx=\"15\" cy=\"15\" r=\"14\"/></svg>";
 
-    var totop = "<svg width=\"18\" height=\"10\" viewBox=\"0 0 18 10\" xmlns=\"http://www.w3.org/2000/svg\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.2\" points=\"1 9 9 1 17 9 \"/></svg>";
+    var totop = "<svg width=\"18\" height=\"10\" viewBox=\"0 0 18 10\"><polyline fill=\"none\" stroke=\"#000\" stroke-width=\"1.2\" points=\"1 9 9 1 17 9\"/></svg>";
 
     const icons = {
       spinner,
@@ -4409,8 +4362,23 @@
     };
     const Search = {
       extends: IconComponent,
+      mixins: [I18n],
+      i18n: { toggle: "Open Search", submit: "Submit Search" },
       beforeConnect() {
         this.icon = hasClass(this.$el, "uk-search-icon") && parents(this.$el, ".uk-search-large").length ? "search-large" : parents(this.$el, ".uk-search-navbar").length ? "search-navbar" : this.$props.icon;
+        if (hasAttr(this.$el, "aria-label")) {
+          return;
+        }
+        if (hasClass(this.$el, "uk-search-toggle") || hasClass(this.$el, "uk-navbar-toggle")) {
+          const label = this.t("toggle");
+          attr(this.$el, "aria-label", label);
+        } else {
+          const button = closest(this.$el, "a,button");
+          if (button) {
+            const label = this.t("submit");
+            attr(button, "aria-label", label);
+          }
+        }
       }
     };
     const Spinner = {
@@ -4578,12 +4546,12 @@
     }
     const srcProps = ["data-src", "data-srcset", "sizes"];
     function setSourceProps(sourceEl, targetEl) {
-      srcProps.forEach((prop) => {
+      for (const prop of srcProps) {
         const value = data(sourceEl, prop);
         if (value) {
           attr(targetEl, prop.replace(/^(data-)+/, ""), value);
         }
-      });
+      }
     }
     function getImageFromElement(el, src, sources) {
       const img = new Image();
@@ -4960,7 +4928,7 @@
       modal.dialog = function(content, options) {
         const dialog = modal(
           `<div class="uk-modal"> <div class="uk-modal-dialog">${content}</div> </div>`,
-          options
+          { stack: true, role: "alertdialog", ...options }
         );
         dialog.show();
         on(
@@ -4977,49 +4945,52 @@
       modal.alert = function(message, options) {
         return openDialog(
           ({ i18n }) => `<div class="uk-modal-body">${isString(message) ? message : html(message)}</div> <div class="uk-modal-footer uk-text-right"> <button class="uk-button uk-button-primary uk-modal-close" autofocus>${i18n.ok}</button> </div>`,
-          options,
-          (deferred) => deferred.resolve()
+          options
         );
       };
       modal.confirm = function(message, options) {
         return openDialog(
           ({ i18n }) => `<form> <div class="uk-modal-body">${isString(message) ? message : html(message)}</div> <div class="uk-modal-footer uk-text-right"> <button class="uk-button uk-button-default uk-modal-close" type="button">${i18n.cancel}</button> <button class="uk-button uk-button-primary" autofocus>${i18n.ok}</button> </div> </form>`,
           options,
-          (deferred) => deferred.reject()
+          () => Promise.reject()
         );
       };
       modal.prompt = function(message, value, options) {
-        return openDialog(
+        const promise = openDialog(
           ({ i18n }) => `<form class="uk-form-stacked"> <div class="uk-modal-body"> <label>${isString(message) ? message : html(message)}</label> <input class="uk-input" value="${value || ""}" autofocus> </div> <div class="uk-modal-footer uk-text-right"> <button class="uk-button uk-button-default uk-modal-close" type="button">${i18n.cancel}</button> <button class="uk-button uk-button-primary">${i18n.ok}</button> </div> </form>`,
           options,
-          (deferred) => deferred.resolve(null),
-          (dialog) => $("input", dialog.$el).value
+          () => null,
+          () => input.value
         );
+        const { $el } = promise.dialog;
+        const input = $("input", $el);
+        on($el, "show", () => input.select());
+        return promise;
       };
       modal.i18n = {
         ok: "Ok",
         cancel: "Cancel"
       };
-      function openDialog(tmpl, options, hideFn, submitFn) {
+      function openDialog(tmpl, options, hideFn = noop, submitFn = noop) {
         options = {
           bgClose: false,
           escClose: true,
-          role: "alertdialog",
           ...options,
           i18n: { ...modal.i18n, ...options == null ? void 0 : options.i18n }
         };
         const dialog = modal.dialog(tmpl(options), options);
-        const deferred = new Deferred();
-        let resolved = false;
-        on(dialog.$el, "submit", "form", (e) => {
-          e.preventDefault();
-          deferred.resolve(submitFn == null ? void 0 : submitFn(dialog));
-          resolved = true;
-          dialog.hide();
-        });
-        on(dialog.$el, "hide", () => !resolved && hideFn(deferred));
-        deferred.promise.dialog = dialog;
-        return deferred.promise;
+        return assign(
+          new Promise((resolve) => {
+            const off = on(dialog.$el, "hide", () => resolve(hideFn()));
+            on(dialog.$el, "submit", "form", (e) => {
+              e.preventDefault();
+              resolve(submitFn(dialog));
+              off();
+              dialog.hide();
+            });
+          }),
+          { dialog }
+        );
       }
     }
 
@@ -5460,7 +5431,7 @@
             if (!length || !isVisible(this.$el)) {
               return false;
             }
-            const [scrollElement] = scrollParents(targets, true);
+            const scrollElement = scrollParent(targets, true);
             const { scrollTop, scrollHeight } = scrollElement;
             const viewport = offsetViewport(scrollElement);
             const max = scrollHeight - viewport.height;
@@ -5553,24 +5524,11 @@
         this.placeholder = null;
       },
       observe: [
-        resize({
-          handler() {
-            !this.isFixed && this.$emit("resize");
-          }
-        }),
-        resize({ target: () => [document.documentElement] }),
+        resize({ target: ({ $el }) => [$el, document.scrollingElement] }),
+        viewport(),
         scroll$1()
       ],
       events: [
-        {
-          name: "resize",
-          el() {
-            return [window, window.visualViewport];
-          },
-          handler() {
-            this.$emit("resizeViewport");
-          }
-        },
         {
           name: "load hashchange popstate",
           el() {
@@ -5592,16 +5550,27 @@
               }
             });
           }
+        },
+        {
+          name: "transitionstart",
+          capture: true,
+          handler() {
+            this.transitionInProgress = once(
+              this.$el,
+              "transitionend transitioncancel",
+              () => this.transitionInProgress = null
+            );
+          }
         }
       ],
       update: [
         {
-          read({ height: height$1, width, margin, sticky }, types) {
+          read({ height: height$1, width, margin, sticky }) {
             this.inactive = !this.matchMedia || !isVisible(this.$el);
             if (this.inactive) {
               return;
             }
-            const hide = this.isFixed && types.has("resize") && !sticky;
+            const hide = this.isFixed && !this.transitionInProgress;
             if (hide) {
               preventTransition(this.selTarget);
               this.hide();
@@ -5613,11 +5582,11 @@
             if (hide) {
               this.show();
             }
-            const viewport = toPx("100vh", "height");
+            const viewport2 = toPx("100vh", "height");
             const dynamicViewport = height(window);
-            const maxScrollHeight = document.scrollingElement.scrollHeight - viewport;
+            const maxScrollHeight = document.scrollingElement.scrollHeight - viewport2;
             let position = this.position;
-            if (this.overflowFlip && height$1 > viewport) {
+            if (this.overflowFlip && height$1 > viewport2) {
               position = position === "top" ? "bottom" : "top";
             }
             const referenceElement = this.isFixed ? this.placeholder : this.$el;
@@ -5625,7 +5594,7 @@
             if (position === "bottom" && (height$1 < dynamicViewport || this.overflowFlip)) {
               offset$1 += dynamicViewport - height$1;
             }
-            const overflow = this.overflowFlip ? 0 : Math.max(0, height$1 + offset$1 - viewport);
+            const overflow = this.overflowFlip ? 0 : Math.max(0, height$1 + offset$1 - viewport2);
             const topOffset = offset(referenceElement).top;
             const elHeight = offset(this.$el).height;
             const start = (this.start === false ? topOffset : parseProp(this.start, this.$el, topOffset)) - offset$1;
@@ -5669,7 +5638,7 @@
             }
             (sticky ? before : after)(this.$el, placeholder);
           },
-          events: ["resize", "resizeViewport"]
+          events: ["resize"]
         },
         {
           read({
@@ -5794,8 +5763,7 @@
               offset += end - offsetParentTop;
               position = "absolute";
             }
-            css(this.$el, { position, width });
-            css(this.$el, "marginTop", 0, "important");
+            css(this.$el, { position, width, marginTop: 0 }, "important");
           }
           if (overflow) {
             offset -= overflowScroll;
@@ -5865,7 +5833,7 @@
     }
 
     var svg = {
-      mixins: [Class, Svg],
+      mixins: [Svg],
       args: "src",
       props: {
         src: String,
@@ -5915,7 +5883,7 @@
     };
     function applyAttributes(el) {
       const { $el } = this;
-      addClass(el, attr($el, "class"));
+      addClass(el, attr($el, "class"), "uk-svg");
       for (let i = 0; i < $el.style.length; i++) {
         const prop = $el.style[i];
         css(el, prop, css($el, prop));
@@ -5952,7 +5920,7 @@
       symbolRe.lastIndex = 0;
       let match;
       while (match = symbolRe.exec(svg)) {
-        symbols[match[3]] = `<svg xmlns="http://www.w3.org/2000/svg"${match[1]}svg>`;
+        symbols[match[3]] = `<svg ${match[1]}svg>`;
       }
       return symbols;
     });
@@ -6010,7 +5978,7 @@
           this.$emit();
         },
         connectChildren() {
-          const index = this.index();
+          let index = Math.max(0, this.index());
           for (const el of this.connects) {
             children(el).forEach((child, i) => toggleClass(child, this.cls, i === index));
           }
@@ -6130,11 +6098,10 @@
           });
           const animate = prev >= 0 && prev !== next;
           this.connects.forEach(async ({ children: children2 }) => {
-            await this.toggleElement(
-              toArray(children2).filter((child) => hasClass(child, this.cls)),
-              false,
-              animate
+            const actives = toArray(children2).filter(
+              (child, i) => i !== active && hasClass(child, this.cls)
             );
+            await this.toggleElement(actives, false, animate);
             await this.toggleElement(children2[active], true, animate);
           });
         }
@@ -6177,8 +6144,8 @@
         queued: true
       },
       computed: {
-        target({ href, target }, $el) {
-          target = queryAll(target || href, $el);
+        target({ target }, $el) {
+          target = queryAll(target || $el.hash, $el);
           return target.length && target || [$el];
         }
       },
@@ -6201,7 +6168,7 @@
           },
           handler(e) {
             this._preventClick = null;
-            if (!isTouch(e) || this._showState || this.$el.disabled) {
+            if (!isTouch(e) || isBoolean(this._showState) || this.$el.disabled) {
               return;
             }
             trigger(this.$el, "focus");
@@ -6228,13 +6195,13 @@
             }
             const show = includes([pointerEnter, "focus"], e.type);
             const expanded = this.isToggled(this.target);
-            if (!show && (e.type === pointerLeave && matches(this.$el, ":focus") || e.type === "blur" && matches(this.$el, ":hover"))) {
-              return;
-            }
-            if (this._showState && show && expanded !== this._showState) {
-              if (!show) {
+            if (!show && (!isBoolean(this._showState) || expanded === this._showState || e.type === pointerLeave && matches(this.$el, ":focus") || e.type === "blur" && matches(this.$el, ":hover"))) {
+              if (expanded === this._showState) {
                 this._showState = null;
               }
+              return;
+            }
+            if (show && isBoolean(this._showState) && expanded !== this._showState) {
               return;
             }
             this._showState = show ? expanded : null;
@@ -6303,11 +6270,12 @@
             return;
           }
           const toggled = this.target.filter(this.isToggled);
-          await this.toggleElement(toggled, false);
-          await this.toggleElement(
-            this.target.filter((el) => !includes(toggled, el)),
-            true
-          );
+          if (await this.toggleElement(toggled, false)) {
+            await this.toggleElement(
+              this.target.filter((el) => !includes(toggled, el)),
+              true
+            );
+          }
         }
       }
     };
@@ -6654,11 +6622,11 @@
       mixins: [Animate],
       args: "target",
       props: {
-        target: Boolean,
+        target: String,
         selActive: Boolean
       },
       data: {
-        target: null,
+        target: "",
         selActive: false,
         attrItem: "uk-filter-control",
         cls: "uk-active",
@@ -6862,7 +6830,7 @@
     function Transitioner$1(prev, next, dir, { animation, easing }) {
       const { percent, translate, show = noop } = animation;
       const props = show(dir);
-      const deferred = new Deferred();
+      let resolve;
       return {
         dir,
         show(duration, percent2 = 0, linear) {
@@ -6871,25 +6839,27 @@
           this.translate(percent2);
           triggerUpdate$1(next, "itemin", { percent: percent2, duration, timing, dir });
           triggerUpdate$1(prev, "itemout", { percent: 1 - percent2, duration, timing, dir });
-          Promise.all([
-            Transition.start(next, props[1], duration, timing),
-            Transition.start(prev, props[0], duration, timing)
-          ]).then(() => {
-            this.reset();
-            deferred.resolve();
-          }, noop);
-          return deferred.promise;
+          return new Promise((res) => {
+            resolve || (resolve = res);
+            Promise.all([
+              Transition.start(next, props[1], duration, timing),
+              Transition.start(prev, props[0], duration, timing)
+            ]).then(() => {
+              this.reset();
+              resolve();
+            }, noop);
+          });
         },
         cancel() {
-          Transition.cancel([next, prev]);
+          return Transition.cancel([next, prev]);
         },
         reset() {
           for (const prop in props[0]) {
             css([next, prev], prop, "");
           }
         },
-        forward(duration, percent2 = this.percent()) {
-          Transition.cancel([next, prev]);
+        async forward(duration, percent2 = this.percent()) {
+          await this.cancel();
           return this.show(duration, percent2, true);
         },
         translate(percent2) {
@@ -7005,7 +6975,7 @@
       connected() {
         attr(this.$el, {
           role: this.role,
-          ariaRoleDescription: "carousel"
+          "aria-roledescription": "carousel"
         });
       },
       update: [
@@ -7072,7 +7042,7 @@
               if (active) {
                 focusEl = button;
               }
-              focus = focus || matches(button, ":focus");
+              focus || (focus = matches(button, ":focus"));
             } else {
               toggleClass(
                 el,
@@ -7168,17 +7138,16 @@
           e.cancelable && e.preventDefault();
           this.dragging = true;
           this.dir = distance < 0 ? 1 : -1;
-          const { slides } = this;
-          let { prevIndex } = this;
+          let { slides, prevIndex } = this;
           let dis = Math.abs(distance);
-          let nextIndex = this.getIndex(prevIndex + this.dir, prevIndex);
-          let width = this._getDistance(prevIndex, nextIndex) || slides[prevIndex].offsetWidth;
+          let nextIndex = this.getIndex(prevIndex + this.dir);
+          let width = this._getDistance(prevIndex, nextIndex);
           while (nextIndex !== prevIndex && dis > width) {
             this.drag -= width * this.dir;
             prevIndex = nextIndex;
             dis -= width;
-            nextIndex = this.getIndex(prevIndex + this.dir, prevIndex);
-            width = this._getDistance(prevIndex, nextIndex) || slides[prevIndex].offsetWidth;
+            nextIndex = this.getIndex(prevIndex + this.dir);
+            width = this._getDistance(prevIndex, nextIndex);
           }
           this.percent = dis / width;
           const prev = slides[prevIndex];
@@ -7186,13 +7155,15 @@
           const changed = this.index !== nextIndex;
           const edge = prevIndex === nextIndex;
           let itemShown;
-          [this.index, this.prevIndex].filter((i) => !includes([nextIndex, prevIndex], i)).forEach((i) => {
-            trigger(slides[i], "itemhidden", [this]);
-            if (edge) {
-              itemShown = true;
-              this.prevIndex = prevIndex;
+          for (const i of [this.index, this.prevIndex]) {
+            if (!includes([nextIndex, prevIndex], i)) {
+              trigger(slides[i], "itemhidden", [this]);
+              if (edge) {
+                itemShown = true;
+                this.prevIndex = prevIndex;
+              }
             }
-          });
+          }
           if (this.index === prevIndex && this.prevIndex !== prevIndex || itemShown) {
             trigger(slides[this.index], "itemshown", [this]);
           }
@@ -7232,6 +7203,9 @@
           }
           css(this.list, { userSelect: "", pointerEvents: "" });
           this.drag = this.percent = null;
+        },
+        _getDistance(prev, next) {
+          return this._getTransitioner(prev, prev !== next && next).getDistance() || this.slides[prev].offsetWidth;
         }
       }
     };
@@ -7421,9 +7395,6 @@
             this.percent
           );
         },
-        _getDistance(prev, next) {
-          return this._getTransitioner(prev, prev !== next && next).getDistance();
-        },
         _translate(percent, prev = this.prevIndex, next = this.index) {
           const transitioner = this._getTransitioner(prev === next ? false : prev, next);
           transitioner.translate(percent);
@@ -7431,8 +7402,8 @@
         },
         _getTransitioner(prev = this.prevIndex, next = this.index, dir = this.dir || 1, options = this.transitionOptions) {
           return new this.Transitioner(
-            isNumber(prev) ? this.slides[prev] : prev,
-            isNumber(next) ? this.slides[next] : next,
+            this.slides[prev] || prev,
+            this.slides[next] || next,
             dir * (isRtl ? -1 : 1),
             options
           );
@@ -7937,9 +7908,9 @@
         getCss(percent) {
           const css2 = { transform: "", filter: "" };
           for (const prop in this.props) {
-            this.props[prop](css2, percent);
+            this.props[prop](css2, clamp(percent));
           }
-          css2.willChange = Object.keys(css2).filter((key) => css2[key] !== "").join(",");
+          css2.willChange = Object.keys(css2).filter((key) => css2[key] !== "").map(propName).join(",");
           return css2;
         }
       }
@@ -8111,7 +8082,7 @@
       const { length } = stops;
       let nullIndex = 0;
       for (let i = 0; i < length; i++) {
-        let [value, percent] = isString(stops[i]) ? stops[i].trim().split(" ") : [stops[i]];
+        let [value, percent] = isString(stops[i]) ? stops[i].trim().split(/ (?![^(]*\))/) : [stops[i]];
         value = fn(value);
         percent = percent ? toFloat(percent) / 100 : null;
         if (i === 0) {
@@ -8202,9 +8173,9 @@
         start({ start }) {
           return toPx(start, "height", this.target, true);
         },
-        end({ end, viewport }) {
+        end({ end, viewport: viewport2 }) {
           return toPx(
-            end || (viewport = (1 - viewport) * 100) && `${viewport}vh+${viewport}%`,
+            end || (viewport2 = (1 - viewport2) * 100) && `${viewport2}vh+${viewport2}%`,
             "height",
             this.target,
             true
@@ -8212,10 +8183,9 @@
         }
       },
       observe: [
-        resize({
-          target: ({ $el, target }) => [$el, target]
-        }),
-        scroll$1()
+        resize({ target: ({ $el, target }) => [$el, target, scrollParent(target, true)] }),
+        scroll$1(),
+        viewport()
       ],
       update: {
         read({ percent }, types) {
@@ -8277,9 +8247,9 @@
     };
 
     function Transitioner(prev, next, dir, { center, easing, list }) {
-      const deferred = new Deferred();
       const from = prev ? getLeft(prev, list, center) : getLeft(next, list, center) + dimensions$1(next).width * dir;
       const to = next ? getLeft(next, list, center) : from + dimensions$1(prev).width * dir * (isRtl ? -1 : 1);
+      let resolve;
       return {
         dir,
         show(duration, percent = 0, linear) {
@@ -8294,22 +8264,24 @@
             timing,
             dir
           });
-          Transition.start(
-            list,
-            { transform: translate(-to * (isRtl ? -1 : 1), "px") },
-            duration,
-            timing
-          ).then(deferred.resolve, noop);
-          return deferred.promise;
+          return new Promise((res) => {
+            resolve || (resolve = res);
+            Transition.start(
+              list,
+              { transform: translate(-to * (isRtl ? -1 : 1), "px") },
+              duration,
+              timing
+            ).then(resolve, noop);
+          });
         },
         cancel() {
-          Transition.cancel(list);
+          return Transition.cancel(list);
         },
         reset() {
           css(list, "transform", "");
         },
-        forward(duration, percent = this.percent()) {
-          Transition.cancel(list);
+        async forward(duration, percent = this.percent()) {
+          await this.cancel();
           return this.show(duration, percent, true);
         },
         translate(percent) {
@@ -8446,7 +8418,7 @@
               left = 0;
             }
             if (this.center) {
-              if (left < width / 2 && left + slideWidth + dimensions$1(this.slides[+i + 1]).width / 2 > width / 2) {
+              if (left < width / 2 && left + slideWidth + dimensions$1(getIndex(+i + 1, this.slides)).width / 2 > width / 2) {
                 sets.push(+i);
                 left = width / 2 - slideWidth / 2;
               }
@@ -8556,7 +8528,12 @@
             const active = includes(actives, slide);
             toggleClass(slide, activeClasses, active);
             attr(slide, "aria-hidden", !active);
-            attr($$(selFocusable, slide), "tabindex", active ? null : -1);
+            for (const focusable of $$(selFocusable, slide)) {
+              if (!hasOwn(focusable, "_tabindex")) {
+                focusable._tabindex = attr(focusable, "tabindex");
+              }
+              attr(focusable, "tabindex", active ? focusable._tabindex : -1);
+            }
           }
         },
         getValidIndex(index = this.index, prevIndex = this.prevIndex) {
@@ -9147,7 +9124,7 @@
         cls: "uk-active"
       },
       beforeConnect() {
-        this.id = generateId(this);
+        this.id = generateId(this, {});
         this._hasTitle = hasAttr(this.$el, "title");
         attr(this.$el, {
           title: "",
@@ -9174,14 +9151,13 @@
             return;
           }
           clearTimeout(this.showTimer);
-          if (!this.isToggled(this.tooltip || null)) {
-            return;
+          if (this.isToggled(this.tooltip || null)) {
+            await this.toggleElement(this.tooltip, false, false);
           }
-          await this.toggleElement(this.tooltip, false, false);
           remove$1(this.tooltip);
           this.tooltip = null;
         },
-        _show() {
+        async _show() {
           this.tooltip = append(
             this.container,
             `<div id="${this.id}" class="uk-${this.$options.name}" role="tooltip"> <div class="uk-${this.$options.name}-inner">${this.title}</div> </div>`
@@ -9210,7 +9186,9 @@
               self: true
             });
           });
-          this.toggleElement(this.tooltip, true);
+          if (!await this.toggleElement(this.tooltip, true)) {
+            this.hide();
+          }
         }
       },
       events: {

@@ -129,7 +129,7 @@ export default {
     connected() {
         attr(this.$el, {
             role: this.role,
-            ariaRoleDescription: 'carousel',
+            'aria-roledescription': 'carousel',
         });
     },
 
@@ -226,7 +226,7 @@ export default {
                         focusEl = button;
                     }
 
-                    focus = focus || matches(button, ':focus');
+                    focus ||= matches(button, ':focus');
                 } else {
                     toggleClass(
                         el,

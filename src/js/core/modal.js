@@ -2,12 +2,13 @@ import Modal from '../mixin/modal';
 import {
     $,
     addClass,
+    assign,
     css,
-    Deferred,
     hasClass,
     height,
     html,
     isString,
+    noop,
     on,
     removeClass,
 } from 'uikit-util';
@@ -60,7 +61,7 @@ function install({ modal }) {
             `<div class="uk-modal">
                 <div class="uk-modal-dialog">${content}</div>
              </div>`,
-            options
+            { stack: true, role: 'alertdialog', ...options }
         );
 
         dialog.show();
@@ -88,8 +89,7 @@ function install({ modal }) {
                     i18n.ok
                 }</button>
             </div>`,
-            options,
-            (deferred) => deferred.resolve()
+            options
         );
     };
 
@@ -105,12 +105,12 @@ function install({ modal }) {
                 </div>
             </form>`,
             options,
-            (deferred) => deferred.reject()
+            () => Promise.reject()
         );
     };
 
     modal.prompt = function (message, value, options) {
-        return openDialog(
+        const promise = openDialog(
             ({ i18n }) => `<form class="uk-form-stacked">
                 <div class="uk-modal-body">
                     <label>${isString(message) ? message : html(message)}</label>
@@ -124,9 +124,15 @@ function install({ modal }) {
                 </div>
             </form>`,
             options,
-            (deferred) => deferred.resolve(null),
-            (dialog) => $('input', dialog.$el).value
+            () => null,
+            () => input.value
         );
+
+        const { $el } = promise.dialog;
+        const input = $('input', $el);
+        on($el, 'show', () => input.select());
+
+        return promise;
     };
 
     modal.i18n = {
@@ -134,31 +140,28 @@ function install({ modal }) {
         cancel: 'Cancel',
     };
 
-    function openDialog(tmpl, options, hideFn, submitFn) {
+    function openDialog(tmpl, options, hideFn = noop, submitFn = noop) {
         options = {
             bgClose: false,
             escClose: true,
-            role: 'alertdialog',
             ...options,
             i18n: { ...modal.i18n, ...options?.i18n },
         };
 
         const dialog = modal.dialog(tmpl(options), options);
-        const deferred = new Deferred();
 
-        let resolved = false;
+        return assign(
+            new Promise((resolve) => {
+                const off = on(dialog.$el, 'hide', () => resolve(hideFn()));
 
-        on(dialog.$el, 'submit', 'form', (e) => {
-            e.preventDefault();
-            deferred.resolve(submitFn?.(dialog));
-            resolved = true;
-            dialog.hide();
-        });
-
-        on(dialog.$el, 'hide', () => !resolved && hideFn(deferred));
-
-        deferred.promise.dialog = dialog;
-
-        return deferred.promise;
+                on(dialog.$el, 'submit', 'form', (e) => {
+                    e.preventDefault();
+                    resolve(submitFn(dialog));
+                    off();
+                    dialog.hide();
+                });
+            }),
+            { dialog }
+        );
     }
 }

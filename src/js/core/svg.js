@@ -1,5 +1,4 @@
 import Svg from '../mixin/svg';
-import Class from '../mixin/class';
 import { getMaxPathLength } from '../util/svg';
 import { mutation } from '../api/observables';
 import {
@@ -16,7 +15,7 @@ import {
 } from 'uikit-util';
 
 export default {
-    mixins: [Class, Svg],
+    mixins: [Svg],
 
     args: 'src',
 
@@ -76,7 +75,7 @@ export default {
 function applyAttributes(el) {
     const { $el } = this;
 
-    addClass(el, attr($el, 'class'));
+    addClass(el, attr($el, 'class'), 'uk-svg');
 
     for (let i = 0; i < $el.style.length; i++) {
         const prop = $el.style[i];
@@ -123,7 +122,7 @@ const parseSymbols = memoize(function (svg) {
 
     let match;
     while ((match = symbolRe.exec(svg))) {
-        symbols[match[3]] = `<svg xmlns="http://www.w3.org/2000/svg"${match[1]}svg>`;
+        symbols[match[3]] = `<svg ${match[1]}svg>`;
     }
 
     return symbols;
