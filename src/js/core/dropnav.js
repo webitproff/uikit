@@ -1,6 +1,3 @@
-import { active } from './drop';
-import Class from '../mixin/class';
-import Container from '../mixin/container';
 import {
     $,
     $$,
@@ -25,7 +22,10 @@ import {
     Transition,
     within,
 } from 'uikit-util';
+import Class from '../mixin/class';
+import Container from '../mixin/container';
 import { keyMap } from '../util/keys';
+import { active } from './drop';
 
 export default {
     mixins: [Class, Container],
@@ -108,23 +108,17 @@ export default {
                 'uk-dropbar',
                 'uk-dropbar-top',
                 this.clsDropbar,
-                `uk-${this.$options.name}-dropbar`
+                `uk-${this.$options.name}-dropbar`,
             );
         },
 
-        dropdowns(dropdowns) {
-            this.$create(
-                'drop',
-                dropdowns.filter((el) => !this.getDropdown(el)),
-                {
-                    ...this.$props,
-                    flip: false,
-                    shift: true,
-                    pos: `bottom-${this.align}`,
-                    boundary: this.boundary === true ? this.$el : this.boundary,
-                }
-            );
+        dropdowns() {
+            this.initializeDropdowns();
         },
+    },
+
+    connected() {
+        this.initializeDropdowns();
     },
 
     disconnected() {
@@ -216,7 +210,7 @@ export default {
                         getIndex(
                             next,
                             elements,
-                            findIndex(elements, (el) => matches(el, ':focus'))
+                            findIndex(elements, (el) => matches(el, ':focus')),
                         )
                     ].focus();
                 }
@@ -300,7 +294,7 @@ export default {
                     css(this.dropbar, 'top', this.dropbar.offsetTop - (dropbarOffset.top - minTop));
                     this.transitionTo(
                         maxBottom - minTop + toFloat(css(target, 'marginBottom')),
-                        target
+                        target,
                     );
                 };
                 this._observer = observeResize([drop.$el, ...drop.target], adjustHeight);
@@ -382,7 +376,7 @@ export default {
                     {
                         clipPath: `polygon(0 0,100% 0,100% ${newHeight}px,0 ${newHeight}px)`,
                     },
-                    this.duration
+                    this.duration,
                 ).finally(() => css(el, { clipPath: '' })),
             ]).catch(noop);
         },
@@ -393,6 +387,20 @@ export default {
 
         isDropbarDrop(el) {
             return this.getDropdown(el) && hasClass(el, this.clsDrop);
+        },
+
+        initializeDropdowns() {
+            this.$create(
+                'drop',
+                this.dropdowns.filter((el) => !this.getDropdown(el)),
+                {
+                    ...this.$props,
+                    flip: false,
+                    shift: true,
+                    pos: `bottom-${this.align}`,
+                    boundary: this.boundary === true ? this.$el : this.boundary,
+                },
+            );
         },
     },
 };

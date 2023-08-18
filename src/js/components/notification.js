@@ -1,10 +1,10 @@
-import Container from '../mixin/container';
 import {
     $,
     append,
     apply,
     closest,
     css,
+    isVisible,
     parent,
     pointerEnter,
     pointerLeave,
@@ -14,6 +14,7 @@ import {
     Transition,
     trigger,
 } from 'uikit-util';
+import Container from '../mixin/container';
 
 export default {
     mixins: [Container],
@@ -46,12 +47,15 @@ export default {
     },
 
     created() {
-        const container =
-            $(`.${this.clsContainer}-${this.pos}`, this.container) ||
-            append(
+        const posClass = `${this.clsContainer}-${this.pos}`;
+        let container = $(`.${posClass}`, this.container);
+
+        if (!container || !isVisible(container)) {
+            container = append(
                 this.container,
-                `<div class="${this.clsContainer} ${this.clsContainer}-${this.pos}" style="display: block"></div>`
+                `<div class="${this.clsContainer} ${posClass}"></div>`,
             );
+        }
 
         this.$mount(
             append(
@@ -59,10 +63,10 @@ export default {
                 `<div class="${this.clsMsg}${
                     this.status ? ` ${this.clsMsg}-${this.status}` : ''
                 }" role="alert">
-                <a href class="${this.clsClose}" data-uk-close></a>
-                <div>${this.message}</div>
-            </div>`
-            )
+                    <a href class="${this.clsClose}" data-uk-close></a>
+                    <div>${this.message}</div>
+                </div>`,
+            ),
         );
     },
 

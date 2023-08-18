@@ -1,9 +1,19 @@
-import I18n from './i18n';
-import SliderNav from './slider-nav';
-import SliderDrag from './slider-drag';
-import SliderAutoplay from './slider-autoplay';
+import {
+    $,
+    children,
+    clamp,
+    getIndex,
+    hasClass,
+    isNumber,
+    isRtl,
+    removeClass,
+    trigger,
+} from 'uikit-util';
 import { resize } from '../api/observables';
-import { $, children, clamp, getIndex, hasClass, isRtl, removeClass, trigger } from 'uikit-util';
+import I18n from './i18n';
+import SliderAutoplay from './slider-autoplay';
+import SliderDrag from './slider-drag';
+import SliderNav from './slider-nav';
 
 export default {
     mixins: [SliderAutoplay, SliderDrag, SliderNav, I18n],
@@ -141,7 +151,7 @@ export default {
             return clamp(
                 getIndex(index, this.slides, prev, this.finite),
                 0,
-                Math.max(0, this.maxIndex)
+                Math.max(0, this.maxIndex),
             );
         },
 
@@ -167,7 +177,7 @@ export default {
             const { length } = this.stack;
             return this._transitioner[length > 1 ? 'forward' : 'show'](
                 length > 1 ? Math.min(this.duration, 75 + 75 / (length - 1)) : this.duration,
-                this.percent
+                this.percent,
             );
         },
 
@@ -181,13 +191,13 @@ export default {
             prev = this.prevIndex,
             next = this.index,
             dir = this.dir || 1,
-            options = this.transitionOptions
+            options = this.transitionOptions,
         ) {
             return new this.Transitioner(
-                this.slides[prev] || prev,
-                this.slides[next] || next,
+                isNumber(prev) ? this.slides[prev] : prev,
+                isNumber(next) ? this.slides[next] : next,
                 dir * (isRtl ? -1 : 1),
-                options
+                options,
             );
         },
     },

@@ -1,8 +1,6 @@
-import { on } from './event';
-import { css } from './style';
 import { $, append, remove } from './dom';
+import { on } from './event';
 import {
-    each,
     isDocument,
     isElement,
     isString,
@@ -15,6 +13,7 @@ import {
     toWindow,
     ucfirst,
 } from './lang';
+import { css } from './style';
 
 const dirs = {
     width: ['left', 'right'],
@@ -37,6 +36,10 @@ export function dimensions(element) {
 }
 
 export function offset(element, coordinates) {
+    if (coordinates) {
+        css(element, { left: 0, top: 0 });
+    }
+
     const currentOffset = dimensions(element);
 
     if (element) {
@@ -54,17 +57,9 @@ export function offset(element, coordinates) {
         return currentOffset;
     }
 
-    const pos = css(element, 'position');
-
-    each(css(element, ['left', 'top']), (value, prop) =>
-        css(
-            element,
-            prop,
-            coordinates[prop] -
-                currentOffset[prop] +
-                toFloat(pos === 'absolute' && value === 'auto' ? position(element)[prop] : value)
-        )
-    );
+    for (const prop of ['left', 'top']) {
+        css(element, prop, coordinates[prop] - currentOffset[prop]);
+    }
 }
 
 export function position(element) {
@@ -142,7 +137,7 @@ function dimension(prop) {
             return css(
                 element,
                 prop,
-                !value && value !== 0 ? '' : +value + boxModelAdjust(element, prop) + 'px'
+                !value && value !== 0 ? '' : +value + boxModelAdjust(element, prop) + 'px',
             );
         }
     };
@@ -154,7 +149,7 @@ export function boxModelAdjust(element, prop, sizing = 'border-box') {
               dirs[prop].map(ucfirst),
               (prop) =>
                   toFloat(css(element, `padding${prop}`)) +
-                  toFloat(css(element, `border${prop}Width`))
+                  toFloat(css(element, `border${prop}Width`)),
           )
         : 0;
 }
@@ -187,7 +182,7 @@ export function toPx(value, property = 'width', element = window, offsetDim = fa
                       : offsetDim
                       ? element[`offset${ucfirst(property)}`]
                       : dimensions(element)[property],
-                  value
+                  value,
               )
             : value;
     });

@@ -1,6 +1,3 @@
-import Media from '../mixin/media';
-import Togglable from '../mixin/togglable';
-import { lazyload } from '../api/observables';
 import {
     attr,
     closest,
@@ -20,6 +17,9 @@ import {
     trigger,
     within,
 } from 'uikit-util';
+import { lazyload } from '../api/observables';
+import Media from '../mixin/media';
+import Togglable from '../mixin/togglable';
 
 const KEY_SPACE = 32;
 
@@ -85,7 +85,7 @@ export default {
                     pointerDown,
                     () => trigger(this.$el, 'blur'),
                     true,
-                    (e) => !within(e.target, this.$el)
+                    (e) => !within(e.target, this.$el),
                 );
 
                 // Prevent initial click to prevent double toggle through focus + click
@@ -114,7 +114,6 @@ export default {
                 if (
                     !show &&
                     (!isBoolean(this._showState) ||
-                        expanded === this._showState ||
                         (e.type === pointerLeave && matches(this.$el, ':focus')) ||
                         (e.type === 'blur' && matches(this.$el, ':hover')))
                 ) {
@@ -223,7 +222,7 @@ export default {
             if (await this.toggleElement(toggled, false)) {
                 await this.toggleElement(
                     this.target.filter((el) => !includes(toggled, el)),
-                    true
+                    true,
                 );
             }
         },

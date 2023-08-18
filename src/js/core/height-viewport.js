@@ -36,7 +36,7 @@ export default {
     }),
 
     update: {
-        read({ minHeight: prev }) {
+        read() {
             if (!isVisible(this.$el)) {
                 return false;
             }
@@ -47,16 +47,15 @@ export default {
             const { body, scrollingElement } = document;
             const scrollElement = scrollParent(this.$el);
             const { height: viewportHeight } = offsetViewport(
-                scrollElement === body ? scrollingElement : scrollElement
+                scrollElement === body ? scrollingElement : scrollElement,
             );
 
             if (this.expand) {
-                minHeight = Math.max(
+                minHeight = `${
                     viewportHeight -
-                        (dimensions(scrollElement).height - dimensions(this.$el).height) -
-                        box,
-                    0
-                );
+                    (dimensions(scrollElement).height - dimensions(this.$el).height) -
+                    box
+                }px`;
             } else {
                 const isScrollingElement =
                     scrollingElement === scrollElement || body === scrollElement;
@@ -86,15 +85,11 @@ export default {
                 minHeight += `${box ? ` - ${box}px` : ''})`;
             }
 
-            return { minHeight, prev };
+            return { minHeight };
         },
 
         write({ minHeight }) {
-            css(this.$el, { minHeight });
-
-            if (this.minHeight && toFloat(css(this.$el, 'minHeight')) < this.minHeight) {
-                css(this.$el, 'minHeight', this.minHeight);
-            }
+            css(this.$el, 'minHeight', `max(${this.minHeight || 0}px, ${minHeight})`);
         },
 
         events: ['resize'],
