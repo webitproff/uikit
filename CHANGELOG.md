@@ -4,7 +4,32 @@
 
 ### Fixed
 
+- Fix icon alignment in Pagination component
+
+## 3.17.0 (September 28, 2023)
+
+### Added
+
+- Add modes `pack` (default) and `next` to Grid component's `masonry` option
+- Add `parallax-start`, `parallax-end`, `parallax-justify` option to Grid component
+- Add `close-on-scroll` option to Drop and Dropdown component
+- Add transparent Navbar gets its color modifier from underlying section 
+- Add support for `<td>` and `<tr>` elements to `fragment()` function
+- Add 3XL size modifier to Heading component
+- Add support for a CSS Selector in `offsetTop` option in Height Viewport component
+
+### Change
+
+- Scroll component scrolls beneath elements covering its target 
+- The `closest()` function no longer accepts an array of elements
+- Reset fieldset min-width
+
+## 3.16.27 (September 28, 2023)
+
+### Fixed
+
 - Fix Height Viewport component not observing viewport changes with `expand: true`
+- Fix passing a `vh` unit to option `scale` relates to element's height in Parallax component 
 
 ## 3.16.26 (August 28, 2023)
 
